@@ -1,0 +1,15 @@
+d:\employee management\backend\src\EmployeeManagement.Application\bin\Debug\net8.0\EmployeeManagement.Application.deps.json
+d:\employee management\backend\src\EmployeeManagement.Application\bin\Debug\net8.0\EmployeeManagement.Application.dll
+d:\employee management\backend\src\EmployeeManagement.Application\bin\Debug\net8.0\EmployeeManagement.Application.pdb
+d:\employee management\backend\src\EmployeeManagement.Application\bin\Debug\net8.0\EmployeeManagement.Domain.dll
+d:\employee management\backend\src\EmployeeManagement.Application\bin\Debug\net8.0\EmployeeManagement.Domain.pdb
+d:\employee management\backend\src\EmployeeManagement.Application\obj\Debug\net8.0\EmployeeManagement.Application.csproj.AssemblyReference.cache
+d:\employee management\backend\src\EmployeeManagement.Application\obj\Debug\net8.0\EmployeeManagement.Application.GeneratedMSBuildEditorConfig.editorconfig
+d:\employee management\backend\src\EmployeeManagement.Application\obj\Debug\net8.0\EmployeeManagement.Application.AssemblyInfoInputs.cache
+d:\employee management\backend\src\EmployeeManagement.Application\obj\Debug\net8.0\EmployeeManagement.Application.AssemblyInfo.cs
+d:\employee management\backend\src\EmployeeManagement.Application\obj\Debug\net8.0\EmployeeManagement.Application.csproj.CoreCompileInputs.cache
+d:\employee management\backend\src\EmployeeManagement.Application\obj\Debug\net8.0\Employee.16DA35CB.Up2Date
+d:\employee management\backend\src\EmployeeManagement.Application\obj\Debug\net8.0\EmployeeManagement.Application.dll
+d:\employee management\backend\src\EmployeeManagement.Application\obj\Debug\net8.0\refint\EmployeeManagement.Application.dll
+d:\employee management\backend\src\EmployeeManagement.Application\obj\Debug\net8.0\EmployeeManagement.Application.pdb
+d:\employee management\backend\src\EmployeeManagement.Application\obj\Debug\net8.0\ref\EmployeeManagement.Application.dll

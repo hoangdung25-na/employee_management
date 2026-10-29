@@ -1,0 +1,11 @@
+d:\employee management\backend\src\EmployeeManagement.Domain\bin\Debug\net8.0\EmployeeManagement.Domain.deps.json
+d:\employee management\backend\src\EmployeeManagement.Domain\bin\Debug\net8.0\EmployeeManagement.Domain.dll
+d:\employee management\backend\src\EmployeeManagement.Domain\bin\Debug\net8.0\EmployeeManagement.Domain.pdb
+d:\employee management\backend\src\EmployeeManagement.Domain\obj\Debug\net8.0\EmployeeManagement.Domain.GeneratedMSBuildEditorConfig.editorconfig
+d:\employee management\backend\src\EmployeeManagement.Domain\obj\Debug\net8.0\EmployeeManagement.Domain.AssemblyInfoInputs.cache
+d:\employee management\backend\src\EmployeeManagement.Domain\obj\Debug\net8.0\EmployeeManagement.Domain.AssemblyInfo.cs
+d:\employee management\backend\src\EmployeeManagement.Domain\obj\Debug\net8.0\EmployeeManagement.Domain.csproj.CoreCompileInputs.cache
+d:\employee management\backend\src\EmployeeManagement.Domain\obj\Debug\net8.0\EmployeeManagement.Domain.dll
+d:\employee management\backend\src\EmployeeManagement.Domain\obj\Debug\net8.0\refint\EmployeeManagement.Domain.dll
+d:\employee management\backend\src\EmployeeManagement.Domain\obj\Debug\net8.0\EmployeeManagement.Domain.pdb
+d:\employee management\backend\src\EmployeeManagement.Domain\obj\Debug\net8.0\ref\EmployeeManagement.Domain.dll

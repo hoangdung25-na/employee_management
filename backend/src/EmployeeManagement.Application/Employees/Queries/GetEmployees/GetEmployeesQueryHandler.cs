@@ -1,0 +1,96 @@
+using EmployeeManagement.Application.Common;
+using EmployeeManagement.Application.Employees.DTOs;
+using EmployeeManagement.Application.Interfaces;
+using EmployeeManagement.Domain.Employees.Enums;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+
+namespace EmployeeManagement.Application.Employees.Queries.GetEmployees;
+
+/// <summary>
+/// CQRS Query Handler for retrieving a paginated, filtered, and sorted list of employees.
+/// Cross-cutting concerns (logging, performance tracking, exception handling) are handled via MediatR pipeline behaviors.
+/// </summary>
+public class GetEmployeesQueryHandler : IRequestHandler<GetEmployeesQuery, PagedResult<EmployeeSummaryDto>>
+{
+    private readonly IApplicationDbContext _context;
+
+    public GetEmployeesQueryHandler(IApplicationDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<PagedResult<EmployeeSummaryDto>> Handle(GetEmployeesQuery request, CancellationToken cancellationToken)
+    {
+        // 1. Initialize read-only query with AsNoTracking (No Include needed as .Select() generates optimal LEFT JOINs)
+        var query = _context.Employees
+            .AsNoTracking()
+            .AsQueryable();
+
+        // 2. Filter by keyword (SARGable query: SQL Server is case-insensitive by default)
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
+        {
+            var keyword = request.Keyword.Trim();
+            query = query.Where(e =>
+                e.FullName.Contains(keyword) ||
+                e.EmployeeCode.Contains(keyword) ||
+                e.WorkEmail.Contains(keyword) ||
+                (e.PhoneNumber != null && e.PhoneNumber.Contains(keyword)));
+        }
+
+        // 3. Filter by DepartmentId (Guid)
+        if (request.DepartmentId.HasValue && request.DepartmentId.Value != Guid.Empty)
+        {
+            query = query.Where(e => e.DepartmentId == request.DepartmentId.Value);
+        }
+
+        // 4. Filter by EmployeeStatus
+        if (!string.IsNullOrWhiteSpace(request.Status) && Enum.TryParse<EmployeeStatus>(request.Status, true, out var statusEnum))
+        {
+            query = query.Where(e => e.Status == statusEnum);
+        }
+
+        // 5. Count total matching records
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        // 6. Apply sorting
+        var isDescending = string.Equals(request.SortOrder, "desc", StringComparison.OrdinalIgnoreCase);
+        query = (request.SortBy?.ToLower()) switch
+        {
+            "fullname" => isDescending ? query.OrderByDescending(e => e.FullName) : query.OrderBy(e => e.FullName),
+            "basesalary" => isDescending ? query.OrderByDescending(e => e.BaseSalary) : query.OrderBy(e => e.BaseSalary),
+            "employeecode" => isDescending ? query.OrderByDescending(e => e.EmployeeCode) : query.OrderBy(e => e.EmployeeCode),
+            _ => isDescending ? query.OrderByDescending(e => e.HireDate) : query.OrderBy(e => e.HireDate)
+        };
+
+        // 7. Apply safe pagination bounds
+        var pageNumber = request.PageNumber < 1 ? 1 : request.PageNumber;
+        var pageSize = request.PageSize is < 1 or > 100 ? 10 : request.PageSize;
+
+        // 8. Project directly to EmployeeSummaryDto
+        var items = await query
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .Select(e => new EmployeeSummaryDto(
+                e.Id,
+                e.EmployeeCode,
+                e.FullName,
+                e.DateOfBirth,
+                e.Gender,
+                e.WorkEmail,
+                e.PhoneNumber,
+                e.DepartmentId,
+                e.Department.DepartmentName,
+                e.PositionId,
+                e.Position.PositionName,
+                e.DirectManager != null ? e.DirectManager.FullName : null,
+                e.BaseSalary,
+                e.AvatarUrl,
+                e.HireDate,
+                e.Status.ToString()
+            ))
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<EmployeeSummaryDto>(items, totalCount, pageNumber, pageSize);
+    }
+}

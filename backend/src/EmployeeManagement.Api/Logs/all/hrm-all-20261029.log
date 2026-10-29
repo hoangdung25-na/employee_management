@@ -1,0 +1,6 @@
+2026-10-29 15:49:16.995 +07:00 [INF] [] Enterprise Employee Management API started successfully in Development mode.
+2026-10-29 15:49:17.257 +07:00 [WRN] [Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware] Failed to determine the https port for redirect.
+2026-10-29 15:49:19.536 +07:00 [WRN] [EmployeeManagement.Application.Common.Behaviors.LoggingBehavior] Slow request detected: GetEmployeesQuery took 2224 ms (Threshold: 500 ms). Payload: {"Keyword":null,"DepartmentId":null,"Status":null,"PageNumber":1,"PageSize":10,"SortBy":null,"SortOrder":"asc","$type":"GetEmployeesQuery"}
+2026-10-29 15:49:19.587 +07:00 [INF] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP GET /api/employees responded 200 in 2338.7487 ms
+2026-10-29 15:49:40.918 +07:00 [INF] [] Enterprise Employee Management API started successfully in Development mode.
+2026-10-29 15:53:37.652 +07:00 [INF] [] Enterprise Employee Management API started successfully in Development mode.
