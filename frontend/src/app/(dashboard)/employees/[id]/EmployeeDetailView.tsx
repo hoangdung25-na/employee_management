@@ -9,6 +9,9 @@ import {
   terminateEmployee,
 } from "@/features/employees/services/employeeService";
 import { EmployeeFormModal } from "@/features/employees/components/EmployeeFormModal";
+import { EmployeeDocumentsTab } from "@/features/employees/components/EmployeeDocumentsTab";
+import { EmployeeContractsTab } from "@/features/employees/components/EmployeeContractsTab";
+import { useAuth } from "@/features/auth/context/AuthContext";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   formatCurrencyVND,
@@ -21,6 +24,14 @@ interface EmployeeDetailViewProps {
 }
 
 export function EmployeeDetailView({ id }: EmployeeDetailViewProps) {
+  const { hasPermission, hasRole } = useAuth();
+  const canManageDocs =
+    hasPermission("Document.Manage") ||
+    hasRole("SUPER_ADMIN") ||
+    hasRole("HR_MANAGER") ||
+    hasRole("HR_STAFF");
+
+  const [activeTab, setActiveTab] = useState<"profile" | "documents" | "contracts">("profile");
   const [employee, setEmployee] = useState<EmployeeDetail | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -260,8 +271,46 @@ export function EmployeeDetailView({ id }: EmployeeDetailViewProps) {
         </div>
       </div>
 
-      {/* Grid of Profile Details */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Tab Navigation */}
+      <div className="flex items-center gap-1 border-b border-[#E5E7EB] bg-white px-4 rounded-[10px] shadow-xs">
+        <button
+          type="button"
+          onClick={() => setActiveTab("profile")}
+          className={`px-4 py-3 text-[14px] font-medium border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
+            activeTab === "profile"
+              ? "border-[#7C3AED] text-[#7C3AED]"
+              : "border-transparent text-[#6B7280] hover:text-[#111827]"
+          }`}
+        >
+          <span>👤</span> Thông tin hồ sơ
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("documents")}
+          className={`px-4 py-3 text-[14px] font-medium border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
+            activeTab === "documents"
+              ? "border-[#7C3AED] text-[#7C3AED]"
+              : "border-transparent text-[#6B7280] hover:text-[#111827]"
+          }`}
+        >
+          <span>📁</span> Tài liệu & Hồ sơ số
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("contracts")}
+          className={`px-4 py-3 text-[14px] font-medium border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
+            activeTab === "contracts"
+              ? "border-[#7C3AED] text-[#7C3AED]"
+              : "border-transparent text-[#6B7280] hover:text-[#111827]"
+          }`}
+        >
+          <span>📜</span> Hợp đồng lao động
+        </button>
+      </div>
+
+      {/* Tab Content: Profile */}
+      {activeTab === "profile" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Section 1: Thông tin cá nhân & Liên hệ */}
         <div className="bg-white border border-[#E5E7EB] rounded-[12px] p-6 shadow-xs space-y-4">
           <div className="flex items-center gap-2 border-b border-[#E5E7EB] pb-3">
@@ -511,6 +560,27 @@ export function EmployeeDetailView({ id }: EmployeeDetailViewProps) {
           </div>
         </div>
       </div>
+      )}
+
+      {/* Tab Content: Documents */}
+      {activeTab === "documents" && (
+        <EmployeeDocumentsTab
+          employeeId={employee.id}
+          canManage={canManageDocs}
+        />
+      )}
+
+      {/* Tab Content: Contracts */}
+      {activeTab === "contracts" && (
+        <EmployeeContractsTab
+          employeeId={employee.id}
+          currentSalary={employee.baseSalary}
+          canManage={canManageDocs}
+          onSalaryUpdated={(newSalary) =>
+            setEmployee((prev) => (prev ? { ...prev, baseSalary: newSalary } : null))
+          }
+        />
+      )}
 
       {/* Edit Employee Form Modal */}
       <EmployeeFormModal

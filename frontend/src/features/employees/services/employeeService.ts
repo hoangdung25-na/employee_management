@@ -8,6 +8,14 @@ import {
   TerminateEmployeePayload,
   UpdateEmployeePayload,
 } from "@/features/employees/types/employee";
+import {
+  CreateEmployeeDocumentInput,
+  EmployeeDocument,
+} from "@/features/employees/types/document";
+import {
+  CreateEmployeeContractInput,
+  EmployeeContract,
+} from "@/features/employees/types/contract";
 
 /**
  * Gọi endpoint `GET /api/employees` lấy danh sách Thành viên Đội ngũ có phân trang & bộ lọc.
@@ -55,4 +63,58 @@ export async function terminateEmployee(
   payload: TerminateEmployeePayload
 ): Promise<boolean> {
   return apiDelete<boolean>(`/employees/${id}`, payload);
+}
+
+/**
+ * Lấy danh sách tài liệu hồ sơ của nhân sự (`GET /api/employees/{id:guid}/documents`).
+ */
+export async function getEmployeeDocuments(
+  employeeId: string
+): Promise<EmployeeDocument[]> {
+  return apiGet<EmployeeDocument[]>(`/employees/${employeeId}/documents`);
+}
+
+/**
+ * Thêm mới tài liệu vào hồ sơ nhân sự (`POST /api/employees/{id:guid}/documents`).
+ */
+export async function createEmployeeDocument(
+  employeeId: string,
+  payload: CreateEmployeeDocumentInput
+): Promise<EmployeeDocument> {
+  return apiPost<EmployeeDocument>(
+    `/employees/${employeeId}/documents`,
+    payload
+  );
+}
+
+/**
+ * Xóa mềm tài liệu hồ sơ (`DELETE /api/employees/{id:guid}/documents/{docId:guid}`).
+ */
+export async function deleteEmployeeDocument(
+  employeeId: string,
+  docId: string
+): Promise<boolean> {
+  return apiDelete<boolean>(`/employees/${employeeId}/documents/${docId}`);
+}
+
+/**
+ * Lấy lịch sử hợp đồng lao động của nhân sự (`GET /api/employees/{id:guid}/contracts`).
+ */
+export async function getEmployeeContracts(
+  employeeId: string
+): Promise<EmployeeContract[]> {
+  return apiGet<EmployeeContract[]>(`/employees/${employeeId}/contracts`);
+}
+
+/**
+ * Ký mới hợp đồng lao động (`POST /api/employees/{id:guid}/contracts`).
+ */
+export async function createEmployeeContract(
+  employeeId: string,
+  payload: CreateEmployeeContractInput
+): Promise<EmployeeContract> {
+  return apiPost<EmployeeContract>(
+    `/employees/${employeeId}/contracts`,
+    payload
+  );
 }
