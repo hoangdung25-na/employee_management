@@ -23,6 +23,12 @@ const BACKOFFICE_NAV_ITEMS = [
     badge: null,
     permission: "Department.View",
   },
+  {
+    label: "Quy trình Nhận / Nghỉ việc",
+    href: "/onboarding",
+    badge: "Checklist",
+    permission: "Onboarding.Manage",
+  },
 ];
 
 export function Sidebar() {
