@@ -54,4 +54,8 @@ public class Employee : BaseEntity
 
     // Optional 1 - 0..1 Identity account linkage
     public User? User { get; set; }
+
+    // Phase 5: Documents & Contracts relationships
+    public ICollection<EmployeeDocument> Documents { get; set; } = new List<EmployeeDocument>();
+    public ICollection<EmployeeContract> Contracts { get; set; } = new List<EmployeeContract>();
 }

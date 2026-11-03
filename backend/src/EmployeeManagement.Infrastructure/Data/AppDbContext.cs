@@ -26,6 +26,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
+    public DbSet<EmployeeContract> EmployeeContracts => Set<EmployeeContract>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,5 +42,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<Position>().HasQueryFilter(p => !p.IsDeleted);
         modelBuilder.Entity<User>().HasQueryFilter(u => !u.IsDeleted);
         modelBuilder.Entity<UserRole>().HasQueryFilter(ur => !ur.User.IsDeleted);
+        modelBuilder.Entity<EmployeeDocument>().HasQueryFilter(ed => !ed.IsDeleted);
+        modelBuilder.Entity<EmployeeContract>().HasQueryFilter(ec => !ec.IsDeleted);
     }
 }

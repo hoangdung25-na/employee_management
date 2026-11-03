@@ -22,6 +22,8 @@ public interface IApplicationDbContext
     DbSet<Permission> Permissions { get; }
     DbSet<UserRole> UserRoles { get; }
     DbSet<RolePermission> RolePermissions { get; }
+    DbSet<EmployeeDocument> EmployeeDocuments { get; }
+    DbSet<EmployeeContract> EmployeeContracts { get; }
 
     DatabaseFacade Database { get; }
 

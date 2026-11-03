@@ -1,9 +1,14 @@
 using EmployeeManagement.Application.Common;
 using EmployeeManagement.Application.Employees.Commands.CreateEmployee;
+using EmployeeManagement.Application.Employees.Commands.CreateEmployeeContract;
+using EmployeeManagement.Application.Employees.Commands.CreateEmployeeDocument;
+using EmployeeManagement.Application.Employees.Commands.DeleteEmployeeDocument;
 using EmployeeManagement.Application.Employees.Commands.TerminateEmployee;
 using EmployeeManagement.Application.Employees.Commands.UpdateEmployee;
 using EmployeeManagement.Application.Employees.DTOs;
 using EmployeeManagement.Application.Employees.Queries.GetEmployeeById;
+using EmployeeManagement.Application.Employees.Queries.GetEmployeeContracts;
+using EmployeeManagement.Application.Employees.Queries.GetEmployeeDocuments;
 using EmployeeManagement.Application.Employees.Queries.GetEmployees;
 using EmployeeManagement.Domain.Users.Consts;
 using MediatR;
@@ -132,5 +137,113 @@ public class EmployeesController : ControllerBase
             cancellationToken);
 
         return Ok(ApiResponse<bool>.SuccessResult(result, "Thực hiện thủ tục thôi việc và thu hồi quyền truy cập thành công."));
+    }
+
+    /// <summary>
+    /// Retrieves all digital documents attached to an employee.
+    /// Accessible by HR roles or the employee themselves (ESS).
+    /// </summary>
+    [HttpGet("{id:guid}/documents")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<EmployeeDocumentDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetEmployeeDocuments(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new GetEmployeeDocumentsQuery(id), cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<EmployeeDocumentDto>>.SuccessResult(result, "Lấy danh sách tài liệu thành công."));
+    }
+
+    /// <summary>
+    /// Adds a new digital document to an employee's profile.
+    /// </summary>
+    [HttpPost("{id:guid}/documents")]
+    [Authorize(Policy = UserConsts.Permissions.DocumentManage)]
+    [ProducesResponseType(typeof(ApiResponse<EmployeeDocumentDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateEmployeeDocument(
+        Guid id,
+        [FromBody] CreateEmployeeDocumentDto dto,
+        CancellationToken cancellationToken)
+    {
+        var command = new CreateEmployeeDocumentCommand(
+            id,
+            dto.DocumentType,
+            dto.DocumentTitle,
+            dto.FileName,
+            dto.FileUrl,
+            dto.FileSizeBytes,
+            dto.IssueDate,
+            dto.ExpiryDate,
+            dto.IsVerified,
+            dto.Notes);
+
+        var result = await _sender.Send(command, cancellationToken);
+        var response = ApiResponse<EmployeeDocumentDto>.SuccessResult(result, "Thêm tài liệu vào hồ sơ thành công.");
+
+        return CreatedAtAction(nameof(GetEmployeeDocuments), new { id }, response);
+    }
+
+    /// <summary>
+    /// Soft-deletes a digital document by ID.
+    /// </summary>
+    [HttpDelete("{id:guid}/documents/{docId:guid}")]
+    [Authorize(Policy = UserConsts.Permissions.DocumentManage)]
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteEmployeeDocument(
+        Guid id,
+        Guid docId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new DeleteEmployeeDocumentCommand(id, docId), cancellationToken);
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Xóa tài liệu thành công."));
+    }
+
+    /// <summary>
+    /// Retrieves employment contracts history for an employee.
+    /// Accessible by HR roles or the employee themselves (ESS).
+    /// </summary>
+    [HttpGet("{id:guid}/contracts")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<EmployeeContractDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetEmployeeContracts(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new GetEmployeeContractsQuery(id), cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<EmployeeContractDto>>.SuccessResult(result, "Lấy lịch sử hợp đồng thành công."));
+    }
+
+    /// <summary>
+    /// Signs and executes a new employment contract for an employee.
+    /// Automatically marks previous Active contract as Expired and synchronizes employee base salary.
+    /// </summary>
+    [HttpPost("{id:guid}/contracts")]
+    [Authorize(Policy = UserConsts.Permissions.DocumentManage)]
+    [ProducesResponseType(typeof(ApiResponse<EmployeeContractDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateEmployeeContract(
+        Guid id,
+        [FromBody] CreateEmployeeContractDto dto,
+        CancellationToken cancellationToken)
+    {
+        var command = new CreateEmployeeContractCommand(
+            id,
+            dto.ContractType,
+            dto.StartDate,
+            dto.EndDate,
+            dto.SignedDate,
+            dto.ContractSalary,
+            dto.Allowances,
+            dto.FileUrl,
+            dto.Notes);
+
+        var result = await _sender.Send(command, cancellationToken);
+        var response = ApiResponse<EmployeeContractDto>.SuccessResult(result, "Ký hợp đồng lao động mới thành công.");
+
+        return CreatedAtAction(nameof(GetEmployeeContracts), new { id }, response);
     }
 }
