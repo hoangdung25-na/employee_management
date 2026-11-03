@@ -2,6 +2,7 @@ using EmployeeManagement.Domain.Common;
 using EmployeeManagement.Domain.Departments.Entities;
 using EmployeeManagement.Domain.Employees.Enums;
 using EmployeeManagement.Domain.Positions.Entities;
+using EmployeeManagement.Domain.Users.Entities;
 
 namespace EmployeeManagement.Domain.Employees.Entities;
 
@@ -43,4 +44,14 @@ public class Employee : BaseEntity
     // Offboarding / Termination details
     public DateOnly? TerminationDate { get; set; }
     public string? TerminationReason { get; set; }
+
+    // Probation, Tax, Social Insurance & Banking (HRM Expansion)
+    public DateOnly? ProbationEndDate { get; set; }
+    public string? TaxCode { get; set; }
+    public string? SocialInsuranceNumber { get; set; }
+    public string? BankAccountNumber { get; set; }
+    public string? BankName { get; set; }
+
+    // Optional 1 - 0..1 Identity account linkage
+    public User? User { get; set; }
 }

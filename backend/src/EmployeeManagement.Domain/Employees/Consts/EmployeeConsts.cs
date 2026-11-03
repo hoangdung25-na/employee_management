@@ -38,7 +38,13 @@ public static class EmployeeConsts
     public const int MaxAvatarUrlLength = 500;
     public const int MaxTerminationReasonLength = 500;
 
-    // --- 8. Labor Law Business Rules ---
+    // --- 8. Tax, Insurance & Banking ---
+    public const int MaxTaxCodeLength = 20;
+    public const int MaxSocialInsuranceNumberLength = 20;
+    public const int MaxBankAccountNumberLength = 30;
+    public const int MaxBankNameLength = 100;
+
+    // --- 9. Labor Law Business Rules ---
     public const int MinimumWorkingAge = 18;
     public const decimal MinimumBaseSalary = 0m;
     public const string UnderageEmployeeErrorMessage = "Employee must be at least 18 years old as of the hire date.";

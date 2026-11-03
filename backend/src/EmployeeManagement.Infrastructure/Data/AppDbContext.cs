@@ -4,6 +4,7 @@ using EmployeeManagement.Domain.Codes.Entities;
 using EmployeeManagement.Domain.Departments.Entities;
 using EmployeeManagement.Domain.Employees.Entities;
 using EmployeeManagement.Domain.Positions.Entities;
+using EmployeeManagement.Domain.Users.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagement.Infrastructure.Data;
@@ -20,6 +21,11 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<Position> Positions => Set<Position>();
     public DbSet<CodeSequence> CodeSequences => Set<CodeSequence>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -32,5 +38,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<Employee>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Department>().HasQueryFilter(d => !d.IsDeleted);
         modelBuilder.Entity<Position>().HasQueryFilter(p => !p.IsDeleted);
+        modelBuilder.Entity<User>().HasQueryFilter(u => !u.IsDeleted);
+        modelBuilder.Entity<UserRole>().HasQueryFilter(ur => !ur.User.IsDeleted);
     }
 }

@@ -1,2 +1,0 @@
-2026-10-29 15:49:17.257 +07:00 [WRN] [Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware] Failed to determine the https port for redirect.
-2026-10-29 15:49:19.536 +07:00 [WRN] [EmployeeManagement.Application.Common.Behaviors.LoggingBehavior] Slow request detected: GetEmployeesQuery took 2224 ms (Threshold: 500 ms). Payload: {"Keyword":null,"DepartmentId":null,"Status":null,"PageNumber":1,"PageSize":10,"SortBy":null,"SortOrder":"asc","$type":"GetEmployeesQuery"}

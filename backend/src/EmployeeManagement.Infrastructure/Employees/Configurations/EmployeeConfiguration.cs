@@ -84,6 +84,24 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(e => e.TerminationReason)
             .HasMaxLength(EmployeeConsts.MaxTerminationReasonLength);
 
+        builder.Property(e => e.ProbationEndDate)
+            .HasColumnType("date");
+
+        builder.Property(e => e.TaxCode)
+            .HasMaxLength(EmployeeConsts.MaxTaxCodeLength)
+            .IsUnicode(false);
+
+        builder.Property(e => e.SocialInsuranceNumber)
+            .HasMaxLength(EmployeeConsts.MaxSocialInsuranceNumberLength)
+            .IsUnicode(false);
+
+        builder.Property(e => e.BankAccountNumber)
+            .HasMaxLength(EmployeeConsts.MaxBankAccountNumberLength)
+            .IsUnicode(false);
+
+        builder.Property(e => e.BankName)
+            .HasMaxLength(EmployeeConsts.MaxBankNameLength);
+
         // 3. Unique Indexes
         builder.HasIndex(e => e.EmployeeCode).IsUnique();
         builder.HasIndex(e => e.WorkEmail).IsUnique();

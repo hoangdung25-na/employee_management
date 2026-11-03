@@ -1,1 +1,21 @@
+# Visual Studio / .NET build artifacts
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Logs
+**/Logs/
+*.log
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+
+# Docs & Database (existing rules)
 /docs
+/database

@@ -1,5 +1,6 @@
 using EmployeeManagement.Application.Interfaces;
 using EmployeeManagement.Infrastructure.Data;
+using EmployeeManagement.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,7 +9,7 @@ namespace EmployeeManagement.Infrastructure;
 
 /// <summary>
 /// Dependency Injection registration for the Infrastructure Layer.
-/// Configures EF Core SQL Server DbContext, repositories, and external services.
+/// Configures EF Core SQL Server DbContext, Identity/JWT services, and current user context.
 /// </summary>
 public static class DependencyInjection
 {
@@ -29,6 +30,13 @@ public static class DependencyInjection
             }));
 
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AppDbContext>());
+
+        // Identity & Security Services (JWT, BCrypt, CurrentUser Context)
+        services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+        services.AddHttpContextAccessor();
+        services.AddSingleton<IPasswordHasher, PasswordHasher>();
+        services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
 
         return services;
     }

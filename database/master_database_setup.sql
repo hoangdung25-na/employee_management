@@ -393,14 +393,14 @@ BEGIN
     WHERE PermissionCode IN ('Department.View', 'Employee.View', 'Employee.Create', 'Auth.ChangePassword');
 END
 
--- 10.7. Users (Tài khoản quản trị ban đầu, Password: Admin@123)
+-- 10.7. Users (Tài khoản quản trị ban đầu, Password: Admin@123 - BCrypt WorkFactor 11)
 IF NOT EXISTS (SELECT 1 FROM dbo.Users)
 BEGIN
     -- 1. Super Admin (IT / Ban Giám Đốc)
     INSERT INTO dbo.Users (Id, Username, Email, PasswordHash, EmployeeId, IsActive, MustChangePassword) 
     VALUES (
         @User_Admin, 'admin', 'admin@company.com', 
-        'AQAAAAIAAYagAAAAEG8jW9LqH5jN2GzF1mQ4r7xYvK8pE2sW6uI1tO9kP3mA4bC5dE6fG7hI8jK9lM0n==', 
+        '$2a$11$DwoA.3ebkKaZxkfQNk/JPexx8K4.GLkD9i4IZ2IWPShoInntKagiy', 
         NULL, 1, 1
     );
     INSERT INTO dbo.UserRoles (UserId, RoleId) VALUES (@User_Admin, @Role_SuperAdmin);
@@ -409,7 +409,7 @@ BEGIN
     INSERT INTO dbo.Users (Id, Username, Email, PasswordHash, EmployeeId, IsActive, MustChangePassword) 
     VALUES (
         @User_Binh, 'binh.tran', 'binh.tran@company.com', 
-        'AQAAAAIAAYagAAAAEG8jW9LqH5jN2GzF1mQ4r7xYvK8pE2sW6uI1tO9kP3mA4bC5dE6fG7hI8jK9lM0n==', 
+        '$2a$11$DwoA.3ebkKaZxkfQNk/JPexx8K4.GLkD9i4IZ2IWPShoInntKagiy', 
         @Emp_Binh, 1, 0
     );
     INSERT INTO dbo.UserRoles (UserId, RoleId) VALUES (@User_Binh, @Role_HrManager);

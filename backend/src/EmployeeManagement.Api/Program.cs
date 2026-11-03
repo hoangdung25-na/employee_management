@@ -25,12 +25,13 @@ try
     builder.Services
         .AddApplicationServices()
         .AddInfrastructureServices(builder.Configuration)
-        .AddApiServices();
+        .AddApiServices(builder.Configuration);
 
     var app = builder.Build();
 
-    // 3. Configure HTTP Request Pipeline & Middlewares
+    // 3. Configure HTTP Request Pipeline & Security Middlewares
     app.UseMiddleware<ExceptionMiddleware>();
+    app.UseMiddleware<SecurityHeadersMiddleware>();
     app.UseSerilogRequestLogging();
 
     if (app.Environment.IsDevelopment())
@@ -44,7 +45,9 @@ try
     }
 
     app.UseCors(EmployeeManagement.Api.DependencyInjection.NextJsCorsPolicyName);
+    app.UseRateLimiter();
     app.UseHttpsRedirection();
+    app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();
 

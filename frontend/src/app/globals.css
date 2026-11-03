@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+:root {
+  /* HRFlow Design System Palette */
+  --hr-primary: #7C3AED;
+  --hr-primary-hover: #5B21B6;
+  --hr-primary-light: #F5F3FF;
+  --hr-primary-selected: #EDE9FE;
+  --hr-primary-border: #A78BFA;
+
+  --hr-secondary: #0D9488;
+  --hr-tertiary: #F97316;
+
+  --hr-background: #FAFAFA;
+  --hr-surface: #FFFFFF;
+
+  --hr-success: #059669;
+  --hr-success-bg: #ECFDF5;
+
+  --hr-warning: #D97706;
+  --hr-warning-bg: #FFFBEB;
+
+  --hr-error: #EF4444;
+  --hr-error-bg: #FEF2F2;
+
+  --hr-info: #2563EB;
+  --hr-border: #E5E7EB;
+}
+
+@theme inline {
+  --color-background: var(--hr-background);
+  --color-surface: var(--hr-surface);
+  --color-primary: var(--hr-primary);
+  --color-primary-hover: var(--hr-primary-hover);
+  --color-secondary: var(--hr-secondary);
+  --color-tertiary: var(--hr-tertiary);
+  --font-heading: var(--font-lexend), sans-serif;
+  --font-sans: var(--font-dm-sans), sans-serif;
+  --font-mono: var(--font-roboto-mono), monospace;
+}
+
+
+  body {
+    background-color: var(--hr-background);
+    color: #111827;
+    font-family: var(--font-dm-sans), system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 22px;
+  }
+
+
+    h1,
+    h2,
+    h3,
+    h4,
+    .font-heading {
+      font-family: var(--font-lexend), system-ui, -apple-system, sans-serif;
+    }
+
+    code,
+    pre,
+    .font-mono {
+      font-family: var(--font-roboto-mono), monospace;
+    }

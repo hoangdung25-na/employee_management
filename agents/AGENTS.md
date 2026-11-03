@@ -1,6 +1,6 @@
 # AGENT INSTRUCTIONS & CLEAN ARCHITECTURE SKILLS
-**Dự án:** Enterprise Employee Management System  
-**Bản chất:** Hệ thống Quản trị Nhân sự Nội bộ (Back-Office HRM) dành riêng cho Ban Giám Đốc và Phòng Nhân sự (HR). Nhân viên thông thường **KHÔNG CÓ TÀI KHOẢN** đăng nhập để đảm bảo 100% bảo mật thông tin lương bổng và hồ sơ riêng tư.  
+**Dự án:** Enterprise Employee Management System (HRFlow)  
+**Bản chất:** Hệ thống Quản trị Nhân sự Toàn diện kết hợp Cổng Tự phục vụ Nhân viên (**Hybrid Back-Office HRM & Employee Self-Service - ESS**). Hỗ trợ 5 vai trò (`SUPER_ADMIN`, `HR_MANAGER`, `HR_STAFF`, `MANAGER`, `EMPLOYEE`) với cơ chế cô lập dữ liệu cấp dòng (Row-Level Data Ownership) bảo vệ tuyệt đối thông tin lương bổng và hồ sơ riêng tư.  
 **Định danh khóa chính:** Sử dụng **`GUID` (`UNIQUEIDENTIFIER`)** làm Khóa chính (`Id`) và Khóa ngoại (`ForeignKey`) cho toàn bộ thực thể trong CSDL và ứng dụng.  
 **Kiến trúc:** Clean Architecture (4 Tầng: Domain, Application, Infrastructure, API)  
 **Công nghệ:** .NET 8 / C# 12, Next.js 14+ (App Router, TailwindCSS, HRFlow Design System), SQL Server  
@@ -82,7 +82,10 @@ Trong kiến trúc Clean Architecture, **mọi sự phụ thuộc (Dependencies)
 2. **Song hành Id (Kỹ thuật) & Code (Nghiệp vụ)**:
    * `Id (Guid)`: Dùng cho database, khóa ngoại, routing backend.
    * `Code (String)`: Dùng cho nghiệp vụ con người (`EmployeeCode`, `DepartmentCode`, `PositionCode`, `RoleCode`).
-3. **Bảo mật Dữ liệu Riêng tư**: Nhân viên thông thường không có tài khoản. Chỉ **Super Admin** và **HR** mới có quyền đăng nhập hệ thống để quản lý.
+3. **Bảo mật Dữ liệu Riêng tư & Cô lập Dữ liệu ESS (Row-Level Data Ownership)**:
+   * Hệ thống hỗ trợ Employee Self-Service (ESS): Nhân viên (`EMPLOYEE`) chỉ được xem/thao tác trên dữ liệu có `EmployeeId` trùng khớp với `employeeId` trong JWT Claim của chính mình (chống IDOR).
+   * Quản lý (`MANAGER`) chỉ được phê duyệt nghỉ phép, timesheet và chấm KPI cho nhân sự cấp dưới trực tiếp (`DirectManagerId`) hoặc thuộc phòng ban mình quản lý.
+   * Dữ liệu lương toàn công ty chỉ dành cho `SUPER_ADMIN` và `HR_MANAGER`.
 4. **Clean Controller**: Controller không bao giờ chứa logic `if/else` nghiệp vụ hay trực tiếp gọi `_context.Employees.Add()`. Toàn bộ phải qua Service/Handler ở Application layer.
 5. **Entity Isolation**: Tuyệt đối không bao giờ trả Entity ra ngoài Controller. Luôn luôn map Entity ➔ DTO.
 6. **Soft Delete & Query Filter**:
@@ -94,18 +97,23 @@ Trong kiến trúc Clean Architecture, **mọi sự phụ thuộc (Dependencies)
 
 ---
 
-## 4. MA TRẬN PHÂN QUYỀN THỰC TẾ (RBAC CHEAT-SHEET)
-* **SUPER_ADMIN**: Toàn quyền cấu hình hệ thống, quản lý tài khoản HR, xem toàn bộ dữ liệu kể cả lương của các Trưởng phòng.
-* **HR_MANAGER**: Toàn quyền phân hệ Phòng ban, Chức vụ, Hồ sơ nhân viên, Mức lương, duyệt thủ tục thôi việc.
-* **HR_STAFF**: Tiếp nhận nhân viên mới, cập nhật hồ sơ, tra cứu danh sách; không có quyền xóa phòng ban hay cấp tài khoản.
-*(Nhân viên thông thường: Là đối tượng dữ liệu được quản lý, KHÔNG CÓ tài khoản đăng nhập).*
+## 4. MA TRẬN PHÂN QUYỀN THỰC TẾ (5-ROLE RBAC & ESS CHEAT-SHEET)
+* **SUPER_ADMIN**: Toàn quyền cấu hình hệ thống, quản lý tài khoản, xem toàn bộ dữ liệu kể cả lương của các Trưởng phòng và báo cáo Analytics.
+* **HR_MANAGER**: Toàn quyền phân hệ Phòng ban, Chức vụ, Hồ sơ nhân viên, Hợp đồng, Mức lương, Ca làm, Bảng công, Phép, Đào tạo, Kỳ đánh giá KPI, duyệt thủ tục thôi việc.
+* **HR_STAFF**: Tiếp nhận nhân viên mới, quản lý tài liệu hồ sơ, theo dõi checklist Onboarding/Offboarding, tra cứu danh sách; không có quyền xóa phòng ban hay sửa lương.
+* **MANAGER**: Phê duyệt đơn nghỉ phép (`Leave.Approve`), duyệt `Timesheet.Approve`, và đánh giá hiệu suất (`Performance.Evaluate`) cho nhân viên cấp dưới trực tiếp; xem thống kê phòng ban mình.
+* **EMPLOYEE (Self-Service)**: Tự Check-in/Check-out chấm công (`Attendance.CheckInSelf`), gửi đơn xin nghỉ phép (`Leave.RequestSelf`), kê khai `Timesheet.SubmitSelf`, tự đánh giá KPI (`Performance.SelfReview`), tham gia khóa đào tạo (`Training.ViewSelf`) và xem hồ sơ cá nhân (`Employee.ViewSelf`).
 
 ---
 
 ## 5. BẢN ĐỒ TÀI LIỆU TRUY XUẤT NHANH
 * 📘 Nghiệp vụ chi tiết: [BUSINESS_ANALYSIS.md](file:///d:/employee%20management/docs/BUSINESS_ANALYSIS.md)
-* 🗄️ Thiết kế CSDL Master: [DATABASE_DESIGN_SUMMARY.md](file:///d:/employee%20management/docs/DATABASE_DESIGN_SUMMARY.md)
-* 🔐 Phân quyền & Bảo mật: [AUTH_SECURITY_MATRIX.md](file:///d:/employee%20management/docs/AUTH_SECURITY_MATRIX.md)
+* 🗄️ Thiết kế CSDL Master (24 Bảng + 3 Views): [DATABASE_DESIGN_SUMMARY.md](file:///d:/employee%20management/docs/DATABASE_DESIGN_SUMMARY.md)
+* 🔐 Phân quyền & Bảo mật (5 Vai trò RBAC/ESS): [AUTH_SECURITY_MATRIX.md](file:///d:/employee%20management/docs/AUTH_SECURITY_MATRIX.md)
+* 🗺️ Lộ trình triển khai 8 Giai đoạn: [IMPLEMENTATION_ROADMAP.md](file:///d:/employee%20management/docs/IMPLEMENTATION_ROADMAP.md)
 * 🌐 Chuẩn RESTful API: [REST_API_SPECIFICATION.md](file:///d:/employee%20management/docs/REST_API_SPECIFICATION.md)
-* 🎨 Thiết kế Giao diện HRFlow: [hrflow-DESIGN.md](file:///d:/employee%20management/hrflow-DESIGN.md)
-* 📜 Script SQL khởi tạo CSDL: [master_database_setup.sql](file:///d:/employee%20management/database/master_database_setup.sql)
+* ⚡ Quy tắc Thiết kế API & Tối ưu Hiệu năng DB: [API_PERFORMANCE_RULES.md](file:///d:/employee%20management/agents/API_PERFORMANCE_RULES.md)
+* 🛡️ Quy tắc Bảo mật Hệ thống (Security Hardening): [SECURITY_HARDENING_RULES.md](file:///d:/employee%20management/agents/SECURITY_HARDENING_RULES.md)
+* 🎨 Thiết kế Giao diện HRFlow: [hrflow-DESIGN.md](file:///d:/employee%20management/agents/hrflow-DESIGN.md)
+* 📜 Script SQL khởi tạo Core HR: [master_database_setup.sql](file:///d:/employee%20management/database/master_database_setup.sql)
+* 🚀 Script SQL mở rộng HRM & ESS: [hrm_expansion_migration.sql](file:///d:/employee%20management/database/hrm_expansion_migration.sql)

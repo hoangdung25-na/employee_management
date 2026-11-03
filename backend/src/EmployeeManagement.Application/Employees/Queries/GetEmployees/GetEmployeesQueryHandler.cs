@@ -2,6 +2,7 @@ using EmployeeManagement.Application.Common;
 using EmployeeManagement.Application.Employees.DTOs;
 using EmployeeManagement.Application.Interfaces;
 using EmployeeManagement.Domain.Employees.Enums;
+using EmployeeManagement.Domain.Users.Consts;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,20 +10,24 @@ namespace EmployeeManagement.Application.Employees.Queries.GetEmployees;
 
 /// <summary>
 /// CQRS Query Handler for retrieving a paginated, filtered, and sorted list of employees.
-/// Cross-cutting concerns (logging, performance tracking, exception handling) are handled via MediatR pipeline behaviors.
+/// Enforces Salary Privacy (masks BaseSalary for HR_STAFF and MANAGER roles).
 /// </summary>
 public class GetEmployeesQueryHandler : IRequestHandler<GetEmployeesQuery, PagedResult<EmployeeSummaryDto>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ICurrentUserService _currentUserService;
 
-    public GetEmployeesQueryHandler(IApplicationDbContext context)
+    public GetEmployeesQueryHandler(
+        IApplicationDbContext context,
+        ICurrentUserService currentUserService)
     {
         _context = context;
+        _currentUserService = currentUserService;
     }
 
     public async Task<PagedResult<EmployeeSummaryDto>> Handle(GetEmployeesQuery request, CancellationToken cancellationToken)
     {
-        // 1. Initialize read-only query with AsNoTracking (No Include needed as .Select() generates optimal LEFT JOINs)
+        // 1. Initialize read-only query with AsNoTracking
         var query = _context.Employees
             .AsNoTracking()
             .AsQueryable();
@@ -53,7 +58,7 @@ public class GetEmployeesQueryHandler : IRequestHandler<GetEmployeesQuery, Paged
         // 5. Count total matching records
         var totalCount = await query.CountAsync(cancellationToken);
 
-        // 6. Apply sorting
+        // 6. Apply sorting (Whitelist switch per SECURITY_HARDENING_RULES.md Rule #3)
         var isDescending = string.Equals(request.SortOrder, "desc", StringComparison.OrdinalIgnoreCase);
         query = (request.SortBy?.ToLower()) switch
         {
@@ -67,7 +72,13 @@ public class GetEmployeesQueryHandler : IRequestHandler<GetEmployeesQuery, Paged
         var pageNumber = request.PageNumber < 1 ? 1 : request.PageNumber;
         var pageSize = request.PageSize is < 1 or > 100 ? 10 : request.PageSize;
 
-        // 8. Project directly to EmployeeSummaryDto
+        // 8. Determine Salary Privacy permission (Only SUPER_ADMIN and HR_MANAGER can see all salaries)
+        var canViewAllSalaries = !_currentUserService.IsAuthenticated ||
+                                 _currentUserService.IsInRole(UserConsts.Roles.SuperAdmin) ||
+                                 _currentUserService.IsInRole(UserConsts.Roles.HrManager);
+        var currentEmployeeId = _currentUserService.EmployeeId;
+
+        // 9. Project directly to EmployeeSummaryDto
         var items = await query
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
@@ -84,7 +95,7 @@ public class GetEmployeesQueryHandler : IRequestHandler<GetEmployeesQuery, Paged
                 e.PositionId,
                 e.Position.PositionName,
                 e.DirectManager != null ? e.DirectManager.FullName : null,
-                e.BaseSalary,
+                canViewAllSalaries || (currentEmployeeId.HasValue && e.Id == currentEmployeeId.Value) ? e.BaseSalary : 0m,
                 e.AvatarUrl,
                 e.HireDate,
                 e.Status.ToString()
