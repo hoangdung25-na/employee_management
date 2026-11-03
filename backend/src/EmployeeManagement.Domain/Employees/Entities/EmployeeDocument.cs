@@ -26,3 +26,4 @@ public class EmployeeDocument : BaseEntity
 
     public string? Notes { get; set; }
 }
+

@@ -24,3 +24,4 @@ public static class DocumentConsts
         public static readonly string[] All = [CV, CitizenId, Degree, Certificate, Contract, Medical, Other];
     }
 }
+

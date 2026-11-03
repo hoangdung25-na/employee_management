@@ -26,3 +26,4 @@ export async function updateOnboardingTaskStatus(
 ): Promise<OnboardingTask> {
   return apiPatch<OnboardingTask>(`/onboarding/tasks/${taskId}/status`, payload);
 }
+

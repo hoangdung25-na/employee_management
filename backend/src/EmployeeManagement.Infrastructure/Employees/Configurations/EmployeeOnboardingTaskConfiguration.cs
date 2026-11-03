@@ -67,3 +67,4 @@ public class EmployeeOnboardingTaskConfiguration : IEntityTypeConfiguration<Empl
             .HasFilter("[IsDeleted] = 0");
     }
 }
+

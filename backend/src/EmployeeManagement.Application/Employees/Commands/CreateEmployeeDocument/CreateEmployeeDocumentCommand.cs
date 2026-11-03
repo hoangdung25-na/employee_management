@@ -18,3 +18,4 @@ public record CreateEmployeeDocumentCommand(
     bool IsVerified,
     string? Notes
 ) : IRequest<EmployeeDocumentDto>;
+

@@ -13,3 +13,4 @@ public record CreateEmployeeContractDto(
     string? FileUrl,
     string? Notes
 );
+

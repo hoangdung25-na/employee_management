@@ -203,13 +203,12 @@ export default function OnboardingPage() {
               setActiveProcess("Onboarding");
               setSelectedEmployeeId(null);
             }}
-            className={`px-4 py-2 rounded-[8px] text-[13px] font-medium transition-all cursor-pointer flex items-center gap-2 ${
-              activeProcess === "Onboarding"
+            className={`px-4 py-2 rounded-[8px] text-[13px] font-medium transition-all cursor-pointer flex items-center gap-2 ${activeProcess === "Onboarding"
                 ? "bg-white text-[#7C3AED] shadow-xs font-semibold"
                 : "text-[#6B7280] hover:text-[#111827]"
-            }`}
+              }`}
           >
-            <span>🚀</span> Tiếp nhận mới (Onboarding)
+            <span>🚀</span> Tiếp nhận mới
           </button>
           <button
             type="button"
@@ -217,13 +216,12 @@ export default function OnboardingPage() {
               setActiveProcess("Offboarding");
               setSelectedEmployeeId(null);
             }}
-            className={`px-4 py-2 rounded-[8px] text-[13px] font-medium transition-all cursor-pointer flex items-center gap-2 ${
-              activeProcess === "Offboarding"
+            className={`px-4 py-2 rounded-[8px] text-[13px] font-medium transition-all cursor-pointer flex items-center gap-2 ${activeProcess === "Offboarding"
                 ? "bg-white text-[#DC2626] shadow-xs font-semibold"
                 : "text-[#6B7280] hover:text-[#111827]"
-            }`}
+              }`}
           >
-            <span>🚪</span> Thủ tục nghỉ việc (Offboarding)
+            <span>🚪</span> Thủ tục nghỉ việc
           </button>
         </div>
       </div>
@@ -294,7 +292,7 @@ export default function OnboardingPage() {
                 onClick={() => setSelectedEmployeeId(null)}
                 className="text-[12px] text-[#7C3AED] font-medium hover:underline cursor-pointer"
               >
-                ✕ Bỏ lọc nhân sự (Xem tất cả)
+                ✕ Bỏ lọc nhân sự
               </button>
             )}
           </div>
@@ -311,11 +309,10 @@ export default function OnboardingPage() {
                   onClick={() =>
                     setSelectedEmployeeId(isSelected ? null : ep.employeeId)
                   }
-                  className={`p-3.5 rounded-[10px] border transition-all cursor-pointer ${
-                    isSelected
+                  className={`p-3.5 rounded-[10px] border transition-all cursor-pointer ${isSelected
                       ? "border-[#7C3AED] bg-[#F5F3FF] shadow-xs"
                       : "border-[#E5E7EB] bg-[#FAFAFA] hover:border-[#D1D5DB] hover:bg-white"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -327,9 +324,8 @@ export default function OnboardingPage() {
                       </span>
                     </div>
                     <span
-                      className={`text-[13px] font-bold font-mono ${
-                        pct === 100 ? "text-[#059669]" : "text-[#7C3AED]"
-                      }`}
+                      className={`text-[13px] font-bold font-mono ${pct === 100 ? "text-[#059669]" : "text-[#7C3AED]"
+                        }`}
                     >
                       {pct}%
                     </span>
@@ -337,9 +333,8 @@ export default function OnboardingPage() {
 
                   <div className="w-full bg-[#E5E7EB] h-2 rounded-full mt-2.5 overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        pct === 100 ? "bg-[#059669]" : "bg-[#7C3AED]"
-                      }`}
+                      className={`h-full rounded-full transition-all duration-300 ${pct === 100 ? "bg-[#059669]" : "bg-[#7C3AED]"
+                        }`}
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -381,11 +376,10 @@ export default function OnboardingPage() {
               key={r.key}
               type="button"
               onClick={() => setSelectedRole(r.key)}
-              className={`h-8 px-3 rounded-[6px] text-[12px] font-medium transition-colors cursor-pointer ${
-                selectedRole === r.key
+              className={`h-8 px-3 rounded-[6px] text-[12px] font-medium transition-colors cursor-pointer ${selectedRole === r.key
                   ? "bg-[#7C3AED] text-white font-semibold"
                   : "bg-[#F3F4F6] text-[#4B5563] hover:bg-[#E5E7EB]"
-              }`}
+                }`}
             >
               {r.label}
             </button>
@@ -403,9 +397,9 @@ export default function OnboardingPage() {
             className="h-8 px-3 rounded-[6px] border border-[#E5E7EB] text-[12px] text-[#374151] bg-white focus:outline-none focus:border-[#7C3AED]"
           >
             <option value="ALL">Tất cả trạng thái</option>
-            <option value="Pending">Chờ xử lý (Pending)</option>
-            <option value="InProgress">Đang tiến hành (InProgress)</option>
-            <option value="Completed">Đã hoàn tất (Completed)</option>
+            <option value="Pending">Chờ xử lý </option>
+            <option value="InProgress">Đang tiến hành </option>
+            <option value="Completed">Đã hoàn tất </option>
           </select>
         </div>
       </div>
@@ -441,11 +435,10 @@ export default function OnboardingPage() {
             return (
               <div
                 key={task.id}
-                className={`bg-white border rounded-[10px] p-4 shadow-xs transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                  isCompleted
+                className={`bg-white border rounded-[10px] p-4 shadow-xs transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 ${isCompleted
                     ? "border-[#E5E7EB] bg-[#FCFDFD]"
                     : "border-[#E5E7EB] hover:border-[#DDD6FE]"
-                }`}
+                  }`}
               >
                 {/* Left: Task Info */}
                 <div className="flex items-start gap-3.5">
@@ -459,11 +452,10 @@ export default function OnboardingPage() {
                         isCompleted ? "Pending" : "Completed"
                       )
                     }
-                    className={`w-6 h-6 rounded-[6px] border flex items-center justify-center shrink-0 mt-0.5 transition-colors cursor-pointer ${
-                      isCompleted
+                    className={`w-6 h-6 rounded-[6px] border flex items-center justify-center shrink-0 mt-0.5 transition-colors cursor-pointer ${isCompleted
                         ? "bg-[#059669] border-[#059669] text-white"
                         : "border-[#D1D5DB] hover:border-[#7C3AED] bg-white text-transparent"
-                    }`}
+                      }`}
                     title={
                       isCompleted ? "Đánh dấu chưa hoàn tất" : "Đánh dấu đã hoàn tất"
                     }
@@ -474,9 +466,8 @@ export default function OnboardingPage() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h4
-                        className={`font-heading text-[14px] font-semibold text-[#111827] ${
-                          isCompleted ? "line-through text-[#9CA3AF]" : ""
-                        }`}
+                        className={`font-heading text-[14px] font-semibold text-[#111827] ${isCompleted ? "line-through text-[#9CA3AF]" : ""
+                          }`}
                       >
                         {task.taskName}
                       </h4>

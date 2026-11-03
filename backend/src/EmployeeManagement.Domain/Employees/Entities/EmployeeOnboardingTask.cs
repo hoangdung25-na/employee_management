@@ -27,3 +27,4 @@ public class EmployeeOnboardingTask : BaseEntity
 
     public string? Notes { get; set; }
 }
+

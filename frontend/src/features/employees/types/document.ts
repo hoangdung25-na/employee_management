@@ -34,3 +34,4 @@ export interface CreateEmployeeDocumentInput {
   isVerified: boolean;
   notes?: string | null;
 }
+

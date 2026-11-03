@@ -64,3 +64,4 @@ public class OnboardingController : ControllerBase
         return Ok(ApiResponse<EmployeeOnboardingTaskDto>.SuccessResult(result, "Cập nhật trạng thái đầu việc thành công."));
     }
 }
+

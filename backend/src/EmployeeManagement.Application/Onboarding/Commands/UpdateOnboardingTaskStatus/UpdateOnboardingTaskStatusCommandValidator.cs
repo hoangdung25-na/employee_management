@@ -23,3 +23,4 @@ public class UpdateOnboardingTaskStatusCommandValidator : AbstractValidator<Upda
             .WithMessage($"Ghi chú không được vượt quá {OnboardingConsts.MaxNotesLength} ký tự.");
     }
 }
+

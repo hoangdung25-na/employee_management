@@ -48,3 +48,4 @@ public class CreateEmployeeDocumentCommandValidator : AbstractValidator<CreateEm
             .WithMessage($"Ghi chú không được vượt quá {DocumentConsts.MaxNotesLength} ký tự.");
     }
 }
+

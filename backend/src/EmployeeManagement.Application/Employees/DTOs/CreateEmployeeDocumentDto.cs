@@ -14,3 +14,4 @@ public record CreateEmployeeDocumentDto(
     bool IsVerified,
     string? Notes
 );
+

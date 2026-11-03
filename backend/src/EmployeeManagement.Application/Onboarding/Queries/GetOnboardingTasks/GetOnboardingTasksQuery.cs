@@ -12,3 +12,4 @@ public record GetOnboardingTasksQuery(
     string? AssignedRole = null,
     string? Status = null
 ) : IRequest<IReadOnlyList<EmployeeOnboardingTaskDto>>;
+

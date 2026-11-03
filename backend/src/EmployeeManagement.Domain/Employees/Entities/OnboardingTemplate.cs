@@ -16,3 +16,4 @@ public class OnboardingTemplate : BaseEntity
     public int SortOrder { get; set; } = 1;
     public bool IsActive { get; set; } = true;
 }
+

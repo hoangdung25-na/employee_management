@@ -11,3 +11,4 @@ public record UpdateOnboardingTaskStatusCommand(
     string Status,
     string? Notes = null
 ) : IRequest<EmployeeOnboardingTaskDto>;
+

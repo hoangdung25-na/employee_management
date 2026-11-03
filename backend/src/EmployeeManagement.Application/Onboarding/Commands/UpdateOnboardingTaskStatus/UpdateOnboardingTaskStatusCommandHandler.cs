@@ -100,3 +100,4 @@ public class UpdateOnboardingTaskStatusCommandHandler : IRequestHandler<UpdateOn
             task.CreatedAt);
     }
 }
+

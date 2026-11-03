@@ -18,3 +18,4 @@ public record EmployeeContractDto(
     string? Notes,
     DateTime CreatedAt
 );
+

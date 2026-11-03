@@ -142,3 +142,4 @@ public class CreateEmployeeContractCommandHandler : IRequestHandler<CreateEmploy
         throw new ConflictException("Không thể cấp số hợp đồng do xung đột đồng thời. Vui lòng thử lại.");
     }
 }
+

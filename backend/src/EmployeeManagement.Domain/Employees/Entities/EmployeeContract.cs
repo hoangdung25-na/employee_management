@@ -24,3 +24,4 @@ public class EmployeeContract : BaseEntity
     public string Status { get; set; } = "Active";
     public string? Notes { get; set; }
 }
+

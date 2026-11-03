@@ -32,3 +32,4 @@ public static class ContractConsts
         public static readonly string[] All = [Draft, Active, Expired, Terminated];
     }
 }
+

@@ -7,3 +7,4 @@ namespace EmployeeManagement.Application.Employees.Queries.GetEmployeeContracts;
 /// Query to retrieve employment contracts history for an employee (GET /api/employees/{id:guid}/contracts).
 /// </summary>
 public record GetEmployeeContractsQuery(Guid EmployeeId) : IRequest<IReadOnlyList<EmployeeContractDto>>;
+

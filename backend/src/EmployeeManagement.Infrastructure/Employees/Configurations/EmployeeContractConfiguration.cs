@@ -78,3 +78,4 @@ public class EmployeeContractConfiguration : IEntityTypeConfiguration<EmployeeCo
             .HasFilter("[IsDeleted] = 0");
     }
 }
+

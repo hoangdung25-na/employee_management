@@ -43,3 +43,4 @@ public class CreateEmployeeContractCommandValidator : AbstractValidator<CreateEm
             .WithMessage($"Ghi chú hợp đồng không được vượt quá {ContractConsts.MaxNotesLength} ký tự.");
     }
 }
+

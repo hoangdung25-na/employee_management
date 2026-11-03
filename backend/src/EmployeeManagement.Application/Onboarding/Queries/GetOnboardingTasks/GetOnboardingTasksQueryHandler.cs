@@ -96,3 +96,4 @@ public class GetOnboardingTasksQueryHandler : IRequestHandler<GetOnboardingTasks
         return tasks;
     }
 }
+

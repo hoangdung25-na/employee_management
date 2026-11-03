@@ -70,3 +70,4 @@ public class EmployeeDocumentConfiguration : IEntityTypeConfiguration<EmployeeDo
             .HasFilter("[IsDeleted] = 0");
     }
 }
+

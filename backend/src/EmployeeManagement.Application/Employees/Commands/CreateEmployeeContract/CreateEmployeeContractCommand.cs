@@ -17,3 +17,4 @@ public record CreateEmployeeContractCommand(
     string? FileUrl,
     string? Notes
 ) : IRequest<EmployeeContractDto>;
+

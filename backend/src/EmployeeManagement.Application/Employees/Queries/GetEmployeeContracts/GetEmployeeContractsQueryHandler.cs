@@ -80,3 +80,4 @@ public class GetEmployeeContractsQueryHandler : IRequestHandler<GetEmployeeContr
         return contracts;
     }
 }
+
