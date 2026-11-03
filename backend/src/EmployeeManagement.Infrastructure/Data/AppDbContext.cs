@@ -28,6 +28,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
     public DbSet<EmployeeContract> EmployeeContracts => Set<EmployeeContract>();
+    public DbSet<OnboardingTemplate> OnboardingTemplates => Set<OnboardingTemplate>();
+    public DbSet<EmployeeOnboardingTask> EmployeeOnboardingTasks => Set<EmployeeOnboardingTask>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -44,5 +46,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<UserRole>().HasQueryFilter(ur => !ur.User.IsDeleted);
         modelBuilder.Entity<EmployeeDocument>().HasQueryFilter(ed => !ed.IsDeleted);
         modelBuilder.Entity<EmployeeContract>().HasQueryFilter(ec => !ec.IsDeleted);
+        modelBuilder.Entity<OnboardingTemplate>().HasQueryFilter(ot => !ot.IsDeleted);
+        modelBuilder.Entity<EmployeeOnboardingTask>().HasQueryFilter(eot => !eot.IsDeleted);
     }
 }

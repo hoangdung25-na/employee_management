@@ -1,5 +1,7 @@
 using EmployeeManagement.Application.Common.Exceptions;
 using EmployeeManagement.Application.Interfaces;
+using EmployeeManagement.Domain.Employees.Consts;
+using EmployeeManagement.Domain.Employees.Entities;
 using EmployeeManagement.Domain.Employees.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -78,6 +80,43 @@ public class TerminateEmployeeCommandHandler : IRequestHandler<TerminateEmployee
                 linkedUser.RefreshTokenExpiryTime = null;
                 linkedUser.SecurityStamp = Guid.NewGuid().ToString();
                 linkedUser.UpdatedAt = nowUtc;
+            }
+
+            // 4. Auto-generate Offboarding Checklist from active OnboardingTemplates (Phase 5)
+            var offboardingTemplates = await _context.OnboardingTemplates
+                .AsNoTracking()
+                .Where(t => t.ProcessType == OnboardingConsts.ProcessTypes.Offboarding && t.IsActive)
+                .OrderBy(t => t.SortOrder)
+                .ToListAsync(cancellationToken);
+
+            foreach (var template in offboardingTemplates)
+            {
+                Guid? assignedTo = null;
+                if (template.AssignedRole == OnboardingConsts.AssignedRoles.Employee)
+                {
+                    assignedTo = employee.Id;
+                }
+                else if (template.AssignedRole == OnboardingConsts.AssignedRoles.Manager)
+                {
+                    assignedTo = employee.DirectManagerId;
+                }
+
+                var offboardingTask = new EmployeeOnboardingTask
+                {
+                    Id = Guid.NewGuid(),
+                    EmployeeId = employee.Id,
+                    ProcessType = OnboardingConsts.ProcessTypes.Offboarding,
+                    TaskName = template.TaskName,
+                    AssignedRole = template.AssignedRole,
+                    AssignedToEmployeeId = assignedTo,
+                    DueDate = request.TerminationDate.AddDays(template.DefaultDueDays),
+                    Status = OnboardingConsts.TaskStatuses.Pending,
+                    Notes = template.Description,
+                    IsDeleted = false,
+                    CreatedAt = nowUtc
+                };
+
+                await _context.EmployeeOnboardingTasks.AddAsync(offboardingTask, cancellationToken);
             }
 
             await _context.SaveChangesAsync(cancellationToken);

@@ -145,6 +145,44 @@ public class CreateEmployeeCommandHandler : IRequestHandler<CreateEmployeeComman
                 };
 
                 await _context.Employees.AddAsync(employee, cancellationToken);
+
+                // Auto-generate Onboarding Checklist from active OnboardingTemplates (Phase 5)
+                var onboardingTemplates = await _context.OnboardingTemplates
+                    .AsNoTracking()
+                    .Where(t => t.ProcessType == OnboardingConsts.ProcessTypes.Onboarding && t.IsActive)
+                    .OrderBy(t => t.SortOrder)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var template in onboardingTemplates)
+                {
+                    Guid? assignedTo = null;
+                    if (template.AssignedRole == OnboardingConsts.AssignedRoles.Employee)
+                    {
+                        assignedTo = employee.Id;
+                    }
+                    else if (template.AssignedRole == OnboardingConsts.AssignedRoles.Manager)
+                    {
+                        assignedTo = employee.DirectManagerId;
+                    }
+
+                    var onboardingTask = new EmployeeOnboardingTask
+                    {
+                        Id = Guid.NewGuid(),
+                        EmployeeId = employee.Id,
+                        ProcessType = OnboardingConsts.ProcessTypes.Onboarding,
+                        TaskName = template.TaskName,
+                        AssignedRole = template.AssignedRole,
+                        AssignedToEmployeeId = assignedTo,
+                        DueDate = employee.HireDate.AddDays(template.DefaultDueDays),
+                        Status = OnboardingConsts.TaskStatuses.Pending,
+                        Notes = template.Description,
+                        IsDeleted = false,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    await _context.EmployeeOnboardingTasks.AddAsync(onboardingTask, cancellationToken);
+                }
+
                 await _context.SaveChangesAsync(cancellationToken);
 
                 return new EmployeeDetailDto(
