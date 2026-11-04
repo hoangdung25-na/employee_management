@@ -60,3 +60,4 @@ export interface AttendanceHistoryResponse {
   totalOvertimeHours: number;
   items: AttendanceLog[];
 }
+

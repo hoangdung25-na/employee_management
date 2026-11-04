@@ -17,8 +17,17 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found.");
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            connectionString = configuration["DB_CONNECTION_STRING"]
+                ?? configuration["DATABASE_URL"];
+        }
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException("Connection string 'DefaultConnection' was not found in configuration or environment (.env).");
+        }
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(connectionString, sqlOptions =>
@@ -32,7 +41,25 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
         // Identity & Security Services (JWT, BCrypt, CurrentUser Context)
-        services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+        services.Configure<JwtSettings>(options =>
+        {
+            configuration.GetSection(JwtSettings.SectionName).Bind(options);
+
+            var envSecret = configuration["JWT_SECRET_KEY"] ?? configuration["JwtSettings:SecretKey"];
+            if (!string.IsNullOrWhiteSpace(envSecret)) options.SecretKey = envSecret;
+
+            var envIssuer = configuration["JWT_ISSUER"] ?? configuration["JwtSettings:Issuer"];
+            if (!string.IsNullOrWhiteSpace(envIssuer)) options.Issuer = envIssuer;
+
+            var envAudience = configuration["JWT_AUDIENCE"] ?? configuration["JwtSettings:Audience"];
+            if (!string.IsNullOrWhiteSpace(envAudience)) options.Audience = envAudience;
+
+            var envAccess = configuration["JWT_ACCESS_TOKEN_EXPIRATION_MINUTES"] ?? configuration["JwtSettings:AccessTokenExpirationMinutes"];
+            if (int.TryParse(envAccess, out var accessMins)) options.AccessTokenExpirationMinutes = accessMins;
+
+            var envRefresh = configuration["JWT_REFRESH_TOKEN_EXPIRATION_DAYS"] ?? configuration["JwtSettings:RefreshTokenExpirationDays"];
+            if (int.TryParse(envRefresh, out var refreshDays)) options.RefreshTokenExpirationDays = refreshDays;
+        });
         services.AddHttpContextAccessor();
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();

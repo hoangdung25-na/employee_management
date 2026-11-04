@@ -44,3 +44,4 @@ public class EmployeeShiftAssignmentConfiguration : IEntityTypeConfiguration<Emp
         builder.HasIndex(esa => esa.EmployeeId);
     }
 }
+

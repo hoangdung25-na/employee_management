@@ -25,8 +25,8 @@ const STATUS_CONFIG: Record<
 > = {
   Pending: {
     label: "Chờ phê duyệt",
-    bg: "bg-[#FFFBEB]",
-    text: "text-[#D97706]",
+    bg: "bg-[#FEF3C7]",
+    text: "text-[#92400E]",
     dot: "bg-[#D97706]",
   },
   Approved: {
@@ -61,9 +61,18 @@ export default function LeavesPage() {
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [types, setTypes] = useState<LeaveType[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  // Create Modal
+  // Status Filter Tabs
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("newest");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [typeFilterChip, setTypeFilterChip] = useState<string>("all");
+
+  // Selected Request for Master-Detail View (Stitch HRFlow Screen 2)
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+
+  // Create Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -75,23 +84,8 @@ export default function LeavesPage() {
     reason: "",
   });
 
-  const handleOpenCreateModal = () => {
-    const today = new Date().toISOString().slice(0, 10);
-    setNewRequest({
-      leaveTypeId: types[0]?.id,
-      startDate: today,
-      endDate: today,
-      totalDays: 1,
-      reason: "",
-    });
-    setIsCreateModalOpen(true);
-    setCreateError(null);
-  };
-
-  // Review Modal (Manager / HR)
-  const [reviewingRequest, setReviewingRequest] = useState<LeaveRequest | null>(null);
-  const [reviewAction, setReviewAction] = useState<"approve" | "reject">("approve");
-  const [reviewComment, setReviewComment] = useState<string>("");
+  // Review State on Selected Item
+  const [inlineReviewComment, setInlineReviewComment] = useState<string>("");
   const [isReviewing, setIsReviewing] = useState<boolean>(false);
 
   // Toast
@@ -108,6 +102,11 @@ export default function LeavesPage() {
       setBalances(balList);
       setRequests(reqList);
       setTypes(typeList);
+
+      // Auto-select first request if none selected
+      if (reqList.length > 0 && !selectedRequestId) {
+        setSelectedRequestId(reqList[0].id);
+      }
       if (typeList.length > 0 && !newRequest.leaveTypeId) {
         setNewRequest((prev) => ({ ...prev, leaveTypeId: typeList[0].id }));
       }
@@ -116,13 +115,27 @@ export default function LeavesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [newRequest.leaveTypeId]);
+  }, [newRequest.leaveTypeId, selectedRequestId]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // Calculate days between dates
+  // Open Create Modal
+  const handleOpenCreateModal = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    setNewRequest({
+      leaveTypeId: types[0]?.id,
+      startDate: today,
+      endDate: today,
+      totalDays: 1,
+      reason: "",
+    });
+    setIsCreateModalOpen(true);
+    setCreateError(null);
+  };
+
+  // Calculate days between dates in Modal
   const handleDatesChange = (start: string, end: string) => {
     const s = new Date(start);
     const e = new Date(end);
@@ -151,7 +164,6 @@ export default function LeavesPage() {
       return;
     }
 
-    // Check remaining balance
     const currentBal = balances.find((b) => b.leaveTypeId === newRequest.leaveTypeId);
     if (currentBal && (newRequest.totalDays ?? 1) > currentBal.remainingDays) {
       setCreateError(
@@ -173,6 +185,7 @@ export default function LeavesPage() {
       });
 
       setRequests((prev) => [created, ...prev]);
+      setSelectedRequestId(created.id);
       setIsCreateModalOpen(false);
       const today = new Date().toISOString().slice(0, 10);
       setNewRequest({
@@ -192,25 +205,21 @@ export default function LeavesPage() {
     }
   };
 
-  const handleReviewSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!reviewingRequest) return;
-
+  // Inline Review Action
+  const handleInlineReview = async (requestId: string, isApproved: boolean) => {
     setIsReviewing(true);
     try {
-      const isApproved = reviewAction === "approve";
-      const updated = await reviewLeaveRequest(reviewingRequest.id, {
+      const updated = await reviewLeaveRequest(requestId, {
         isApproved,
-        reviewComment: reviewComment.trim(),
+        reviewComment: inlineReviewComment.trim(),
       });
 
       setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-      setReviewingRequest(null);
-      setReviewComment("");
+      setInlineReviewComment("");
       setToastMessage(
         isApproved
-          ? `Đã phê duyệt đơn nghỉ phép ${updated.requestCode} thành công.`
-          : `Đã từ chối đơn nghỉ phép ${updated.requestCode}.`
+          ? `Đã phê duyệt thành công đơn ${updated.requestCode} của ${updated.employeeName}.`
+          : `Đã từ chối đơn ${updated.requestCode}.`
       );
       setTimeout(() => setToastMessage(null), 5000);
       loadData();
@@ -239,14 +248,29 @@ export default function LeavesPage() {
     }
   };
 
+  // Filter requests
   const filteredRequests = requests.filter((r) => {
-    if (statusFilter === "ALL") return true;
-    return r.status === statusFilter;
+    if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
+    if (typeFilterChip !== "all" && r.leaveTypeId !== typeFilterChip) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchCode = r.requestCode.toLowerCase().includes(q);
+      const matchName = r.employeeName.toLowerCase().includes(q);
+      if (!matchCode && !matchName) return false;
+    }
+    return true;
   });
+
+  // Selected Request object
+  const activeRequest =
+    requests.find((r) => r.id === selectedRequestId) || filteredRequests[0] || null;
+
+  // Active user's primary leave balance
+  const primaryBalance = balances[0] || null;
 
   return (
     <div className="space-y-6">
-      {/* Toast */}
+      {/* Toast Notification */}
       {toastMessage && (
         <div className="p-4 rounded-[12px] bg-[#ECFDF5] border border-[#059669] text-[#065F46] flex items-center justify-between shadow-xs animate-in fade-in duration-200">
           <div className="flex items-center gap-2.5">
@@ -263,480 +287,931 @@ export default function LeavesPage() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Top Navigation & Breadcrumb (Stitch Screen 2) */}
+      <div className="flex items-center justify-between">
+        <nav className="flex items-center gap-1.5 text-[12px] text-[#6B7280]">
+          <span className="hover:text-[#7C3AED] cursor-pointer transition-colors">Chấm công</span>
+          <Icon name="chevron_right" size={14} className="text-[#9CA3AF]" />
+          <span className="font-semibold text-[#7C3AED]">Đơn từ & Nghỉ phép</span>
+        </nav>
+        <div className="flex items-center gap-2 text-[12px] text-[#4B5563] font-mono">
+          <span className="w-2 h-2 rounded-full bg-[#0D9488] animate-pulse" />
+          <span>Luồng phê duyệt tự động: Sẵn sàng</span>
+        </div>
+      </div>
+
+      {/* Header & Quick Summary Stats Pill Group */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="font-heading text-[24px] font-bold text-[#111827]">
-            Quản lý Nghỉ phép (Leave Management)
+          <h1 className="font-heading text-[26px] font-bold text-[#111827] tracking-tight">
+            Quản lý Đơn từ & Nghỉ phép
           </h1>
           <p className="text-[13px] text-[#6B7280] mt-0.5">
-            Theo dõi quỹ phép năm, nộp đơn xin nghỉ online và luồng phê duyệt cấp quản lý.
+            Tiếp nhận, kiểm tra số ngày phép khả dụng và xét duyệt đơn từ của nhân sự trong phòng ban.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleOpenCreateModal}
-          className="h-10 px-4 rounded-[8px] bg-[#7C3AED] hover:bg-[#5B21B6] text-white text-[13px] font-medium shadow-xs flex items-center gap-2 transition-colors cursor-pointer shrink-0"
-        >
-          <Icon name="add" size={16} />
-          <span>Nộp đơn xin nghỉ phép</span>
-        </button>
-      </div>
-
-      {/* Leave Balances Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {balances.map((b) => {
-          const percentUsed = b.entitledDays > 0 ? Math.min(100, Math.round((b.usedDays / b.entitledDays) * 100)) : 0;
-          return (
-            <div
-              key={b.leaveTypeId}
-              className="bg-white border border-[#E5E7EB] rounded-[16px] p-5 shadow-xs flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[13px] font-bold text-[#111827]">
-                    {b.leaveTypeName}
-                  </span>
-                  <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-[#EDE9FE] text-[#7C3AED]">
-                    {b.leaveTypeCode}
-                  </span>
-                </div>
-
-                <div className="flex items-baseline gap-2 mb-2">
-                  <span className="font-heading text-[28px] font-extrabold text-[#7C3AED]">
-                    {b.remainingDays}
-                  </span>
-                  <span className="text-[13px] text-[#6B7280]">
-                    / {b.entitledDays + b.carriedOverDays} ngày khả dụng
-                  </span>
-                </div>
-
-                {/* Progress bar */}
-                <div className="w-full h-2 rounded-full bg-[#F3F4F6] overflow-hidden mb-3">
-                  <div
-                    className="h-full rounded-full bg-[#7C3AED] transition-all duration-300"
-                    style={{ width: `${percentUsed}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 text-center text-[11px] pt-3 border-t border-[#F3F4F6] text-[#6B7280]">
-                <div>
-                  <p className="font-bold text-[#111827]">{b.entitledDays}</p>
-                  <p>Hạn mức</p>
-                </div>
-                <div>
-                  <p className="font-bold text-[#059669]">{b.usedDays}</p>
-                  <p>Đã dùng</p>
-                </div>
-                <div>
-                  <p className="font-bold text-[#D97706]">{b.pendingDays}</p>
-                  <p>Chờ duyệt</p>
-                </div>
-              </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Quick Summary Stats Pill Group */}
+          <div className="flex items-center gap-2 bg-white p-1.5 rounded-[12px] shadow-xs border border-[#E5E7EB] shrink-0">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-[8px] bg-[#EDE9FE]/60">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#7C3AED]" />
+              <span className="text-[12px] text-[#111827]">
+                Cần duyệt:{" "}
+                <strong className="text-[#7C3AED] font-bold">
+                  {requests.filter((r) => r.status === "Pending").length} đơn
+                </strong>
+              </span>
             </div>
-          );
-        })}
+            <div className="h-4 w-px bg-[#E5E7EB]" />
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-[8px]">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#0D9488]" />
+              <span className="text-[12px] text-[#6B7280]">
+                Đã xử lý:{" "}
+                <strong className="text-[#111827] font-semibold">
+                  {requests.filter((r) => r.status !== "Pending").length} lượt
+                </strong>
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleOpenCreateModal}
+            className="h-10 px-4 rounded-[10px] bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-[13px] font-medium shadow-xs flex items-center gap-2 transition-colors cursor-pointer shrink-0"
+          >
+            <Icon name="add" size={16} />
+            <span>Nộp đơn xin nghỉ phép</span>
+          </button>
+        </div>
       </div>
 
-      {/* Filter Tabs & Requests Table */}
-      <div className="bg-white border border-[#E5E7EB] rounded-[16px] shadow-xs overflow-hidden">
-        {/* Tab Filters */}
-        <div className="p-4 border-b border-[#E5E7EB] flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5 overflow-x-auto">
-            {[
-              { id: "ALL", label: "Tất cả đơn" },
-              { id: "Pending", label: "Chờ phê duyệt" },
-              { id: "Approved", label: "Đã phê duyệt" },
-              { id: "Rejected", label: "Từ chối" },
-              { id: "Cancelled", label: "Đã hủy" },
-            ].map((tab) => (
+      {/* Status Tabs & Filter Toolbar (Stitch Screen 2) */}
+      <div className="flex flex-col gap-4 bg-white p-4 rounded-[16px] shadow-xs border border-[#E5E7EB]">
+        {/* Status Tabs Row */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E5E7EB] pb-3">
+          <div className="flex items-center gap-2 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setStatusFilter("Pending")}
+              className={`px-4 py-2 rounded-[8px] text-[13px] font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+                statusFilter === "Pending"
+                  ? "bg-[#EDE9FE] text-[#7C3AED]"
+                  : "text-[#6B7280] hover:bg-[#F9FAFB] hover:text-[#111827]"
+              }`}
+            >
+              <span>Chờ duyệt</span>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#7C3AED] text-white">
+                {requests.filter((r) => r.status === "Pending").length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setStatusFilter("Approved")}
+              className={`px-4 py-2 rounded-[8px] text-[13px] font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                statusFilter === "Approved"
+                  ? "bg-[#EDE9FE] text-[#7C3AED] font-semibold"
+                  : "text-[#6B7280] hover:bg-[#F9FAFB] hover:text-[#111827]"
+              }`}
+            >
+              <span>Đã duyệt</span>
+              <span className="px-2 py-0.5 rounded-full text-[11px] bg-[#F3F4F6] text-[#6B7280]">
+                {requests.filter((r) => r.status === "Approved").length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setStatusFilter("Rejected")}
+              className={`px-4 py-2 rounded-[8px] text-[13px] font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                statusFilter === "Rejected"
+                  ? "bg-[#EDE9FE] text-[#7C3AED] font-semibold"
+                  : "text-[#6B7280] hover:bg-[#F9FAFB] hover:text-[#111827]"
+              }`}
+            >
+              <span>Từ chối</span>
+              <span className="px-2 py-0.5 rounded-full text-[11px] bg-[#F3F4F6] text-[#6B7280]">
+                {requests.filter((r) => r.status === "Rejected").length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setStatusFilter("ALL")}
+              className={`px-4 py-2 rounded-[8px] text-[13px] font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                statusFilter === "ALL"
+                  ? "bg-[#EDE9FE] text-[#7C3AED] font-semibold"
+                  : "text-[#6B7280] hover:bg-[#F9FAFB] hover:text-[#111827]"
+              }`}
+            >
+              <span>Tất cả</span>
+              <span className="px-2 py-0.5 rounded-full text-[11px] bg-[#F3F4F6] text-[#6B7280]">
+                {requests.length}
+              </span>
+            </button>
+          </div>
+
+          {/* Filter Controls (Department & Time Sorting) */}
+          <div className="flex items-center gap-2">
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="h-9 px-3 bg-[#F9FAFB] rounded-[8px] text-[12px] text-[#374151] border border-[#E5E7EB] focus:outline-none focus:border-[#7C3AED] cursor-pointer"
+            >
+              <option value="all">Tất cả phòng ban</option>
+              <option value="tech">Khối Kỹ thuật & Công nghệ</option>
+              <option value="biz">Khối Kinh doanh & Mkt</option>
+              <option value="hr">Khối Vận hành & Nhân sự</option>
+            </select>
+
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="h-9 px-3 bg-[#F9FAFB] rounded-[8px] text-[12px] text-[#374151] border border-[#E5E7EB] focus:outline-none focus:border-[#7C3AED] cursor-pointer"
+            >
+              <option value="newest">Mới nhất trước</option>
+              <option value="oldest">Cũ nhất trước</option>
+              <option value="days">Số ngày nghỉ nhiều nhất</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Search & Category Filter Chips Row */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+          <div className="relative w-full lg:w-72 shrink-0">
+            <span className="absolute left-3 top-2.5 text-[#9CA3AF]">
+              <Icon name="search" size={16} />
+            </span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm nhân viên, mã đơn..."
+              className="w-full h-9 pl-9 pr-3 bg-[#F9FAFB] rounded-[8px] text-[12px] text-[#111827] placeholder:text-[#9CA3AF] border border-[#E5E7EB] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+            />
+          </div>
+
+          {/* Filter Chips */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0">
+            <button
+              type="button"
+              onClick={() => setTypeFilterChip("all")}
+              className={`h-8 px-3.5 rounded-full text-[12px] font-medium shrink-0 transition-colors cursor-pointer ${
+                typeFilterChip === "all"
+                  ? "border border-[#7C3AED] bg-[#EDE9FE] text-[#7C3AED]"
+                  : "bg-[#F9FAFB] hover:bg-[#F3F4F6] text-[#6B7280] border border-[#E5E7EB]"
+              }`}
+            >
+              Tất cả loại đơn
+            </button>
+            {types.map((t) => (
               <button
-                key={tab.id}
+                key={t.id}
                 type="button"
-                onClick={() => setStatusFilter(tab.id)}
-                className={`h-8 px-3 rounded-[6px] text-[12px] font-medium transition-colors cursor-pointer ${
-                  statusFilter === tab.id
-                    ? "bg-[#7C3AED] text-white shadow-xs"
-                    : "text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#111827]"
+                onClick={() => setTypeFilterChip(t.id)}
+                className={`h-8 px-3.5 rounded-full text-[12px] font-medium shrink-0 transition-colors cursor-pointer ${
+                  typeFilterChip === t.id
+                    ? "border border-[#7C3AED] bg-[#EDE9FE] text-[#7C3AED]"
+                    : "bg-[#F9FAFB] hover:bg-[#F3F4F6] text-[#6B7280] border border-[#E5E7EB]"
                 }`}
               >
-                {tab.label}
+                {t.leaveTypeName}
               </button>
             ))}
           </div>
-
-          <span className="text-[12px] text-[#6B7280]">
-            Tổng số: <strong className="text-[#111827]">{filteredRequests.length}</strong> đơn
-          </span>
         </div>
-
-        {/* Loading state */}
-        {isLoading && (
-          <div className="p-8 space-y-3 animate-pulse">
-            <div className="h-6 bg-[#F3F4F6] rounded w-1/4" />
-            <div className="h-10 bg-[#F3F4F6] rounded" />
-            <div className="h-10 bg-[#F3F4F6] rounded" />
-          </div>
-        )}
-
-        {/* Empty state */}
-        {!isLoading && filteredRequests.length === 0 && (
-          <div className="p-12 text-center">
-            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[#F3F4F6] text-[#9CA3AF] flex items-center justify-center">
-              <Icon name="history_edu" size={24} />
-            </div>
-            <p className="font-semibold text-[15px] text-[#111827]">
-              Không có đơn xin nghỉ phép nào
-            </p>
-            <p className="text-[13px] text-[#6B7280] mt-1">
-              Bạn chưa có đơn nghỉ phép nào trong trạng thái này.
-            </p>
-          </div>
-        )}
-
-        {/* Table */}
-        {!isLoading && filteredRequests.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-[#FAFAFA] border-b border-[#E5E7EB] text-[12px] font-semibold text-[#6B7280] uppercase tracking-wider h-11">
-                  <th className="px-6 py-3">Mã đơn</th>
-                  <th className="px-6 py-3">Nhân sự</th>
-                  <th className="px-6 py-3">Loại nghỉ phép</th>
-                  <th className="px-6 py-3">Thời gian nghỉ</th>
-                  <th className="px-6 py-3">Số ngày</th>
-                  <th className="px-6 py-3">Lý do</th>
-                  <th className="px-6 py-3">Trạng thái</th>
-                  <th className="px-6 py-3 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E5E7EB] text-[13px] text-[#111827]">
-                {filteredRequests.map((req) => {
-                  const conf = STATUS_CONFIG[req.status] || STATUS_CONFIG.Pending;
-                  const isOwner = session?.employeeId === req.employeeId;
-
-                  return (
-                    <tr key={req.id} className="hover:bg-[#F9FAFB] transition-colors">
-                      <td className="px-6 py-4 font-mono font-bold text-[#7C3AED] whitespace-nowrap">
-                        {req.requestCode}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <p className="font-medium text-[#111827]">{req.employeeName}</p>
-                        <p className="text-[11px] text-[#6B7280]">
-                          {req.employeeCode} {req.departmentName ? `• ${req.departmentName}` : ""}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="font-medium text-[#374151]">{req.leaveTypeName}</span>
-                      </td>
-                      <td className="px-6 py-4 font-mono text-[#4B5563] whitespace-nowrap">
-                        {formatDateVN(req.startDate)}
-                        {req.startDate !== req.endDate && ` → ${formatDateVN(req.endDate)}`}
-                      </td>
-                      <td className="px-6 py-4 font-semibold text-[#7C3AED] whitespace-nowrap">
-                        {req.totalDays} ngày
-                      </td>
-                      <td className="px-6 py-4 max-w-xs">
-                        <p className="text-[12px] text-[#374151] line-clamp-2">{req.reason}</p>
-                        {req.attachmentUrl && (
-                          <a
-                            href={req.attachmentUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] text-[#7C3AED] hover:underline mt-1 font-medium"
-                          >
-                            <Icon name="attachment" size={12} />
-                            <span>Minh chứng</span>
-                          </a>
-                        )}
-                        {req.reviewComment && (
-                          <p className="text-[11px] text-[#6B7280] italic mt-1">
-                            Nhận xét: {req.reviewComment}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${conf.bg} ${conf.text}`}
-                        >
-                          <span className={`w-1.5 h-1.5 rounded-full ${conf.dot}`} />
-                          {conf.label}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
-                          {/* Cancel button for own pending request */}
-                          {req.status === "Pending" && (isOwner || hasRole("SUPER_ADMIN")) && (
-                            <button
-                              type="button"
-                              onClick={() => handleCancelRequest(req.id, req.requestCode)}
-                              className="text-[#EF4444] hover:text-[#DC2626] text-[12px] font-medium px-2 py-1 rounded hover:bg-[#FEF2F2] transition-colors cursor-pointer"
-                            >
-                              Hủy đơn
-                            </button>
-                          )}
-
-                          {/* Review buttons for Manager / HR */}
-                          {req.status === "Pending" && canReview && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setReviewingRequest(req);
-                                  setReviewAction("approve");
-                                  setReviewComment("");
-                                }}
-                                className="h-7 px-2.5 rounded-[6px] bg-[#ECFDF5] text-[#059669] hover:bg-[#059669] hover:text-white text-[12px] font-medium transition-colors cursor-pointer"
-                              >
-                                Duyệt
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setReviewingRequest(req);
-                                  setReviewAction("reject");
-                                  setReviewComment("");
-                                }}
-                                className="h-7 px-2.5 rounded-[6px] bg-[#FEF2F2] text-[#DC2626] hover:bg-[#DC2626] hover:text-white text-[12px] font-medium transition-colors cursor-pointer"
-                              >
-                                Từ chối
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
 
-      {/* Modal Nộp đơn xin nghỉ phép */}
+      {/* MASTER-DETAIL LAYOUT: 40% Left List / 60% Right Detail (Directly from Stitch Screen 2) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* LEFT COLUMN: 40% (lg:col-span-5) Request Cards List */}
+        <div className="lg:col-span-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <h2 className="font-heading text-[16px] font-bold text-[#111827]">
+                Danh sách đơn từ
+              </h2>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#EDE9FE] text-[#7C3AED]">
+                {filteredRequests.length}
+              </span>
+            </div>
+          </div>
+
+          {/* Empty state */}
+          {filteredRequests.length === 0 && !isLoading && (
+            <div className="bg-white border border-[#E5E7EB] rounded-[16px] p-8 text-center">
+              <Icon name="history_edu" size={32} className="mx-auto text-[#9CA3AF] mb-2" />
+              <p className="font-semibold text-[14px] text-[#111827]">Không tìm thấy đơn từ nào</p>
+              <p className="text-[12px] text-[#6B7280] mt-1">
+                Thử thay đổi bộ lọc trạng thái hoặc từ khóa tìm kiếm.
+              </p>
+            </div>
+          )}
+
+          {/* Cards Stack */}
+          <div className="flex flex-col gap-2.5">
+            {filteredRequests.map((req) => {
+              const isSelected = activeRequest?.id === req.id;
+              const conf = STATUS_CONFIG[req.status] || STATUS_CONFIG.Pending;
+
+              return (
+                <div
+                  key={req.id}
+                  onClick={() => setSelectedRequestId(req.id)}
+                  className={`relative rounded-[16px] p-4 cursor-pointer transition-all flex flex-col gap-3 border ${
+                    isSelected
+                      ? "bg-[#FAF5FF] border-2 border-[#7C3AED] shadow-sm"
+                      : "bg-white border-[#E5E7EB] hover:border-[#DDD6FE] hover:shadow-xs"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#EDE9FE] text-[#7C3AED] flex items-center justify-center font-heading font-bold text-[14px] shrink-0 ring-2 ring-[#7C3AED]/20">
+                        {req.employeeName
+                          .split(" ")
+                          .slice(-2)
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[14px] font-semibold text-[#111827] truncate">
+                            {req.employeeName}
+                          </span>
+                          <span className="font-mono text-[11px] text-[#6B7280]">
+                            {req.employeeCode}
+                          </span>
+                        </div>
+                        <span className="text-[12px] text-[#6B7280]">
+                          {req.departmentName || "Phòng ban"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Pill Status */}
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold shrink-0 ${conf.bg} ${conf.text}`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${conf.dot}`} />
+                      {conf.label}
+                    </span>
+                  </div>
+
+                  {/* Leave type & dates */}
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#E5E7EB]/60">
+                    <span className="px-2.5 py-1 rounded-[6px] text-[11px] font-medium bg-[#EFF6FF] text-[#1D4ED8] flex items-center gap-1">
+                      <Icon name="calendar" size={13} />
+                      {req.leaveTypeName}
+                    </span>
+                    <span className="text-[12px] font-semibold text-[#111827]">
+                      {formatDateVN(req.startDate)}
+                      {req.startDate !== req.endDate ? ` → ${formatDateVN(req.endDate)}` : ""} (
+                      {req.totalDays} ngày)
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-[#6B7280] pt-0.5">
+                    <span className="flex items-center gap-1 text-[#7C3AED] font-medium">
+                      <Icon name="more_time" size={13} />
+                      Mã: {req.requestCode}
+                    </span>
+                    <span className="truncate max-w-[180px]">
+                      {req.reason ? `“${req.reason}”` : "Không có lý do"}
+                    </span>
+                  </div>
+
+                  {/* Active Selection Indicator Arrow */}
+                  {isSelected && (
+                    <div className="absolute -right-[7px] top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-[#7C3AED] rotate-45 hidden lg:block rounded-xs" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: 60% (lg:col-span-7) Request Detail Card (Stitch Screen 2) */}
+        <div className="lg:col-span-7 flex flex-col gap-5 bg-white rounded-[16px] p-6 border border-[#E5E7EB] shadow-xs">
+          {activeRequest ? (
+            <>
+              {/* Detail Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E5E7EB] pb-4">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[14px] font-bold text-[#7C3AED] bg-[#EDE9FE] px-2.5 py-0.5 rounded-[6px]">
+                      #{activeRequest.requestCode}
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#EFF6FF] text-[#1D4ED8]">
+                      {activeRequest.leaveTypeName} (Có hưởng lương)
+                    </span>
+                  </div>
+                  <span className="text-[12px] text-[#6B7280] mt-1">
+                    Thời gian gửi:{" "}
+                    <strong className="text-[#111827] font-medium">
+                      {formatDateVN(activeRequest.createdAt)}
+                    </strong>
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="p-2 rounded-[8px] text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#111827] transition-colors cursor-pointer"
+                    title="In đơn từ"
+                  >
+                    <Icon name="print" size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => alert(`Lịch sử đơn ${activeRequest.requestCode}`)}
+                    className="p-2 rounded-[8px] text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#111827] transition-colors cursor-pointer"
+                    title="Lịch sử thay đổi"
+                  >
+                    <Icon name="history_edu" size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Employee Identity Profile Card */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-[#F9FAFB] rounded-[14px] border border-[#E5E7EB]">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-full bg-[#EDE9FE] text-[#7C3AED] flex items-center justify-center font-heading font-bold text-[16px] shrink-0 ring-2 ring-[#7C3AED]/30">
+                    {activeRequest.employeeName
+                      .split(" ")
+                      .slice(-2)
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()}
+                  </div>
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className="font-heading text-[16px] font-bold text-[#111827]">
+                        {activeRequest.employeeName}
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#E5E7EB] text-[#374151]">
+                        Chính thức
+                      </span>
+                    </div>
+                    <span className="text-[13px] text-[#4B5563]">
+                      {activeRequest.departmentName || "Khối phòng ban"}
+                    </span>
+                    <span className="font-mono text-[11px] text-[#6B7280] mt-0.5">
+                      Mã NV: {activeRequest.employeeCode}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex sm:flex-col items-end justify-between sm:justify-center border-t sm:border-t-0 sm:border-l border-[#E5E7EB] pt-2 sm:pt-0 sm:pl-4 shrink-0">
+                  <span className="text-[11px] text-[#6B7280]">Quản lý trực tiếp:</span>
+                  <span className="text-[13px] font-semibold text-[#111827]">
+                    {session?.fullName || "HR Manager"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Visual Leave Balance Widget (Teal Progress #0D9488 - Directly from Stitch Screen 2) */}
+              <div className="bg-[#F9FAFB] p-4 rounded-[14px] border border-[#E5E7EB] flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Icon name="account_balance_wallet" size={20} className="text-[#0D9488]" />
+                    <span className="font-heading text-[14px] font-bold text-[#111827]">
+                      Quỹ phép năm hiện tại (2026)
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-bold text-[#0D9488] bg-[#CCFBF1] px-2.5 py-1 rounded-full">
+                    Khả dụng tốt
+                  </span>
+                </div>
+
+                {/* Progress Bar & Balance Figures */}
+                <div className="flex flex-col gap-1.5 mt-1">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-[12px] text-[#6B7280]">Số ngày phép còn lại:</span>
+                    <span className="font-heading text-[18px] text-[#111827]">
+                      <span className="text-[#0D9488] font-extrabold">
+                        {primaryBalance?.remainingDays ?? 12}
+                      </span>{" "}
+                      <span className="text-[#6B7280] text-[13px] font-normal">
+                        / {primaryBalance ? primaryBalance.entitledDays + primaryBalance.carriedOverDays : 12} ngày
+                      </span>
+                    </span>
+                  </div>
+
+                  {/* Multi-segment Progress Bar */}
+                  <div className="w-full h-3 bg-[#E5E7EB] rounded-full overflow-hidden flex">
+                    <div
+                      className="h-full bg-[#9CA3AF] transition-all"
+                      style={{
+                        width: `${
+                          primaryBalance
+                            ? Math.min(100, (primaryBalance.usedDays / primaryBalance.entitledDays) * 100)
+                            : 20
+                        }%`,
+                      }}
+                      title="Đã sử dụng"
+                    />
+                    <div
+                      className="h-full bg-[#7C3AED] transition-all"
+                      style={{
+                        width: `${Math.min(30, (activeRequest.totalDays / 12) * 100)}%`,
+                      }}
+                      title="Kỳ xin nghỉ này"
+                    />
+                    <div
+                      className="h-full bg-[#0D9488] transition-all"
+                      style={{
+                        width: `${
+                          primaryBalance
+                            ? Math.max(
+                                0,
+                                ((primaryBalance.remainingDays - activeRequest.totalDays) /
+                                  primaryBalance.entitledDays) *
+                                  100
+                              )
+                            : 50
+                        }%`,
+                      }}
+                      title="Khả dụng sau duyệt"
+                    />
+                  </div>
+                </div>
+
+                {/* Stats Grid Breakup */}
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E5E7EB] text-center">
+                  <div className="flex flex-col py-1.5 bg-white rounded-[8px] border border-[#E5E7EB]">
+                    <span className="text-[10px] text-[#6B7280]">Đã sử dụng</span>
+                    <span className="font-heading text-[14px] font-bold text-[#111827]">
+                      {primaryBalance?.usedDays ?? 0} ngày
+                    </span>
+                  </div>
+                  <div className="flex flex-col py-1.5 bg-[#EDE9FE]/50 rounded-[8px] border border-[#DDD6FE]">
+                    <span className="text-[10px] text-[#7C3AED] font-medium">Kỳ xin nghỉ này</span>
+                    <span className="font-heading text-[14px] font-bold text-[#7C3AED]">
+                      {activeRequest.totalDays} ngày
+                    </span>
+                  </div>
+                  <div className="flex flex-col py-1.5 bg-[#CCFBF1]/50 rounded-[8px] border border-[#99F6E4]">
+                    <span className="text-[10px] text-[#0D9488] font-medium">Khả dụng sau duyệt</span>
+                    <span className="font-heading text-[14px] font-bold text-[#0D9488]">
+                      {primaryBalance
+                        ? Math.max(0, primaryBalance.remainingDays - activeRequest.totalDays)
+                        : 10}{" "}
+                      ngày
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Leave Details Section */}
+              <div className="flex flex-col gap-3">
+                <div className="border-b border-[#E5E7EB] pb-2">
+                  <h3 className="font-heading text-[14px] font-bold text-[#111827] flex items-center gap-2">
+                    <Icon name="description" size={18} className="text-[#7C3AED]" />
+                    <span>Nội dung đăng ký nghỉ phép</span>
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Duration Block */}
+                  <div className="flex flex-col gap-1 p-3.5 rounded-[12px] bg-[#F9FAFB] border border-[#E5E7EB]">
+                    <span className="text-[11px] font-semibold text-[#6B7280]">Khoảng thời gian:</span>
+                    <div className="font-semibold text-[13px] text-[#111827] flex items-center gap-1.5">
+                      <Icon name="calendar" size={15} className="text-[#7C3AED]" />
+                      <span>
+                        {formatDateVN(activeRequest.startDate)} — {formatDateVN(activeRequest.endDate)}
+                      </span>
+                    </div>
+                    <span className="text-[12px] text-[#6B7280]">
+                      Tổng cộng: <strong className="text-[#7C3AED]">{activeRequest.totalDays} ngày công</strong>
+                    </span>
+                  </div>
+
+                  {/* Handover Block */}
+                  <div className="flex flex-col gap-1 p-3.5 rounded-[12px] bg-[#F9FAFB] border border-[#E5E7EB]">
+                    <span className="text-[11px] font-semibold text-[#6B7280]">
+                      Nhân sự bàn giao & hỗ trợ:
+                    </span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <div className="w-8 h-8 rounded-full bg-[#EDE9FE] text-[#7C3AED] flex items-center justify-center font-bold text-[11px]">
+                        BG
+                      </div>
+                      <div className="flex flex-col leading-tight">
+                        <span className="text-[13px] font-semibold text-[#111827]">
+                          Đồng nghiệp trong team
+                        </span>
+                        <span className="text-[11px] text-[#6B7280]">Tiếp nhận đầu việc</span>
+                      </div>
+                    </div>
+                    <div className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-[#0D9488]">
+                      <Icon name="check_circle" size={13} />
+                      <span>Đã xác nhận tiếp nhận bàn giao</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reason Block */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-[11px] font-semibold text-[#6B7280]">Lý do xin nghỉ:</span>
+                  <div className="p-3.5 bg-[#F9FAFB] border border-[#E5E7EB] rounded-[12px] text-[13px] text-[#111827] leading-relaxed">
+                    “{activeRequest.reason}”
+                  </div>
+                </div>
+
+                {/* Attachment Block */}
+                {activeRequest.attachmentUrl && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px] font-semibold text-[#6B7280]">Tệp đính kèm:</span>
+                    <div className="flex items-center justify-between p-3 rounded-[10px] border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] transition-colors max-w-md">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-[8px] bg-[#EFF6FF] text-[#1D4ED8] flex items-center justify-center shrink-0">
+                          <Icon name="attachment" size={16} />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[12px] font-semibold text-[#111827] truncate">
+                            {activeRequest.attachmentUrl}
+                          </span>
+                          <span className="text-[10px] text-[#9CA3AF]">Tài liệu minh chứng đính kèm</span>
+                        </div>
+                      </div>
+                      <a
+                        href={activeRequest.attachmentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#7C3AED] hover:underline text-[12px] font-semibold p-1"
+                      >
+                        Mở tệp
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Team Availability Conflict Alert Widget (Stitch Screen 2) */}
+              <div className="p-4 rounded-[12px] bg-[#FFFBEB] border border-[#FDE68A] flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Icon name="warning" size={18} className="text-[#B45309]" />
+                    <span className="font-heading text-[13px] font-bold text-[#92400E]">
+                      Trùng lịch nghỉ trong phòng ban
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FDE68A] text-[#92400E]">
+                    Tuần này
+                  </span>
+                </div>
+                <p className="text-[12px] text-[#92400E] leading-relaxed">
+                  Đội ngũ phòng ban hiện duy trì nhân sự hoạt động trực tiếp. Vui lòng rà soát tiến độ trước khi duyệt.
+                </p>
+              </div>
+
+              {/* 4-step Approval Stepper Timeline (Stitch Screen 2) */}
+              <div className="flex flex-col gap-3 pt-2">
+                <div className="border-b border-[#E5E7EB] pb-2">
+                  <h3 className="font-heading text-[14px] font-bold text-[#111827] flex items-center gap-2">
+                    <Icon name="bolt" size={18} className="text-[#7C3AED]" />
+                    <span>Quy trình phê duyệt (4 bước)</span>
+                  </h3>
+                </div>
+
+                <div className="relative pl-6 space-y-4 before:content-[''] before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#E5E7EB]">
+                  {/* Step 1: Created */}
+                  <div className="relative flex items-start gap-3">
+                    <div className="absolute -left-6 top-0.5 w-5 h-5 rounded-full bg-[#059669] flex items-center justify-center text-white ring-4 ring-white text-[11px] font-bold">
+                      ✓
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12px] font-bold text-[#111827]">
+                          {activeRequest.employeeName} — Đã tạo đơn
+                        </span>
+                        <span className="font-mono text-[10px] text-[#6B7280]">
+                          {formatDateVN(activeRequest.createdAt)}
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-[#6B7280]">
+                        Khởi tạo yêu cầu nghỉ phép {activeRequest.totalDays} ngày.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Step 2: Handover */}
+                  <div className="relative flex items-start gap-3">
+                    <div className="absolute -left-6 top-0.5 w-5 h-5 rounded-full bg-[#059669] flex items-center justify-center text-white ring-4 ring-white text-[11px] font-bold">
+                      ✓
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12px] font-bold text-[#111827]">
+                          Nhân sự bàn giao — Đã xác nhận tiếp nhận
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-[#6B7280]">
+                        Đồng ý bàn giao các đầu mối công việc trong kỳ vắng mặt.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Step 3: Current Approver */}
+                  <div className="relative flex items-start gap-3">
+                    <div
+                      className={`absolute -left-6 top-0.5 w-5 h-5 rounded-full flex items-center justify-center text-white ring-4 ring-white text-[11px] font-bold ${
+                        activeRequest.status === "Pending"
+                          ? "bg-[#7C3AED] ring-[#EDE9FE]"
+                          : activeRequest.status === "Approved"
+                          ? "bg-[#059669]"
+                          : "bg-[#DC2626]"
+                      }`}
+                    >
+                      {activeRequest.status === "Approved" ? "✓" : activeRequest.status === "Rejected" ? "✕" : "3"}
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12px] font-bold text-[#7C3AED]">
+                          Quản lý phê duyệt (Bạn / HR Manager)
+                        </span>
+                        {activeRequest.status === "Pending" && (
+                          <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-[#EDE9FE] text-[#7C3AED]">
+                            Lượt của bạn
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-[#6B7280]">
+                        {activeRequest.status === "Pending"
+                          ? "Đang thẩm định số ngày phép và tính khả thi bố trí công việc."
+                          : activeRequest.reviewComment
+                          ? `Ghi chú: ${activeRequest.reviewComment}`
+                          : "Đã hoàn tất bước phê duyệt."}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Step 4: Final Step */}
+                  <div className="relative flex items-start gap-3 opacity-60">
+                    <div className="absolute -left-6 top-0.5 w-5 h-5 rounded-full bg-[#E5E7EB] text-[#6B7280] flex items-center justify-center ring-4 ring-white text-[10px] font-bold">
+                      4
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12px] font-semibold text-[#111827]">
+                          Cập nhật Hệ thống & Đồng bộ Bảng lương
+                        </span>
+                        <span className="text-[10px] text-[#9CA3AF]">Tự động</span>
+                      </div>
+                      <span className="text-[11px] text-[#6B7280]">
+                        Cập nhật chấm công và gửi thông báo cho nhân viên.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Section: Comment & Approval Buttons (Stitch Screen 2) */}
+              {activeRequest.status === "Pending" && (
+                <div className="flex flex-col gap-3 pt-3 border-t border-[#E5E7EB]">
+                  {canReview ? (
+                    <>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[13px] font-semibold text-[#111827] flex items-center justify-between">
+                          <span>Ý kiến xét duyệt / Lời nhắn cho nhân sự</span>
+                          <span className="text-[11px] text-[#9CA3AF] font-normal">
+                            Không bắt buộc
+                          </span>
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={inlineReviewComment}
+                          onChange={(e) => setInlineReviewComment(e.target.value)}
+                          placeholder="Nhập ghi chú hoặc lý do phản hồi cho nhân viên..."
+                          className="w-full p-3 bg-[#F9FAFB] rounded-[10px] text-[13px] text-[#111827] placeholder:text-[#9CA3AF] border border-[#E5E7EB] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all resize-none"
+                        />
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            alert("Đã gửi yêu cầu nhân sự bổ sung thêm thông tin!")
+                          }
+                          className="h-10 px-3.5 rounded-[8px] text-[12px] font-medium text-[#4B5563] hover:text-[#111827] hover:bg-[#F3F4F6] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Icon name="help_outline" size={16} />
+                          <span>Yêu cầu bổ sung thông tin</span>
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={isReviewing}
+                            onClick={() => handleInlineReview(activeRequest.id, false)}
+                            className="h-10 px-5 rounded-[8px] text-[13px] font-semibold text-[#DC2626] hover:bg-[#FEF2F2] border border-[#FCA5A5] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Icon name="close" size={16} />
+                            <span>Từ chối</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isReviewing}
+                            onClick={() => handleInlineReview(activeRequest.id, true)}
+                            className="h-10 px-6 rounded-[8px] text-[13px] font-semibold bg-[#7C3AED] text-white hover:bg-[#6D28D9] active:bg-[#5B21B6] shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <Icon name="done_all" size={16} />
+                            <span>{isReviewing ? "Đang xử lý..." : "Duyệt đơn"}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  ) : session?.employeeId === activeRequest.employeeId ? (
+                    <div className="flex items-center justify-end pt-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleCancelRequest(activeRequest.id, activeRequest.requestCode)
+                        }
+                        className="h-10 px-4 rounded-[8px] border border-[#FCA5A5] text-[#DC2626] hover:bg-[#FEF2F2] text-[13px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Icon name="delete" size={16} />
+                        <span>Hủy bỏ đơn này</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-[12px] text-[#6B7280] italic">
+                      Đơn đang trong quá trình chờ quản lý cấp thẩm quyền xét duyệt.
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="p-12 text-center text-[#6B7280]">
+              Chọn một đơn nghỉ phép từ danh sách bên trái để xem chi tiết.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* CREATE LEAVE REQUEST MODAL */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-[16px] max-w-lg w-full p-6 shadow-xl border border-[#E5E7EB] space-y-4 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-3">
-              <h3 className="font-heading text-[18px] font-semibold text-[#111827]">
-                Nộp Đơn Xin Nghỉ Phép
-              </h3>
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-[20px] max-w-lg w-full shadow-2xl border border-[#E5E7EB] overflow-hidden">
+            <div className="p-5 border-b border-[#E5E7EB] flex items-center justify-between bg-[#EDE9FE]/40">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-[10px] bg-[#7C3AED] text-white flex items-center justify-center shadow-xs">
+                  <Icon name="add" size={18} />
+                </div>
+                <div>
+                  <h3 className="font-heading text-[16px] font-bold text-[#111827]">
+                    Nộp đơn xin nghỉ phép
+                  </h3>
+                  <p className="text-[12px] text-[#6B7280]">
+                    Hệ thống sẽ tự động trừ phép khả dụng sau khi được phê duyệt
+                  </p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(false)}
-                className="text-[#6B7280] hover:text-[#111827] p-1 rounded-md cursor-pointer"
+                className="w-8 h-8 rounded-full text-[#6B7280] hover:bg-white flex items-center justify-center cursor-pointer"
               >
-                <Icon name="close" size={18} />
+                ✕
               </button>
             </div>
 
-            {createError && (
-              <div className="p-3 rounded-[8px] bg-[#FEF2F2] border border-[#EF4444] text-[#EF4444] text-[13px]">
-                {createError}
-              </div>
-            )}
+            <form onSubmit={handleCreateSubmit} className="p-6 space-y-4">
+              {createError && (
+                <div className="p-3.5 rounded-[10px] bg-[#FEF2F2] border border-[#FCA5A5] text-[#DC2626] text-[13px] flex items-center gap-2">
+                  <Icon name="warning" size={16} />
+                  <span>{createError}</span>
+                </div>
+              )}
 
-            <form onSubmit={handleCreateSubmit} className="space-y-4">
               <div>
-                <label className="text-[12px] font-medium text-[#4B5563] block mb-1">
-                  Loại nghỉ phép <span className="text-[#EF4444]">*</span>
+                <label className="block text-[13px] font-semibold text-[#374151] mb-1.5">
+                  Loại hình nghỉ phép <span className="text-[#EF4444]">*</span>
                 </label>
                 <select
                   required
-                  className="w-full h-10 px-3 border border-[#E5E7EB] rounded-[8px] text-[13px] bg-white focus:border-[#7C3AED] focus:outline-none"
                   value={newRequest.leaveTypeId}
                   onChange={(e) =>
-                    setNewRequest({ ...newRequest, leaveTypeId: e.target.value })
+                    setNewRequest((prev) => ({ ...prev, leaveTypeId: e.target.value }))
                   }
+                  className="w-full h-10 px-3 border border-[#E5E7EB] rounded-[10px] text-[13px] text-[#111827] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 cursor-pointer"
                 >
                   {types.map((t) => {
                     const b = balances.find((bal) => bal.leaveTypeId === t.id);
                     return (
                       <option key={t.id} value={t.id}>
-                        {t.leaveTypeName} (Còn {b?.remainingDays ?? t.defaultDaysPerYear} ngày)
+                        {t.leaveTypeName} ({t.leaveTypeCode}) {b ? `— Còn ${b.remainingDays} ngày` : ""}
                       </option>
                     );
                   })}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[12px] font-medium text-[#4B5563] block mb-1">
+                  <label className="block text-[13px] font-semibold text-[#374151] mb-1.5">
                     Từ ngày <span className="text-[#EF4444]">*</span>
                   </label>
                   <input
                     type="date"
                     required
-                    className="w-full h-10 px-3 border border-[#E5E7EB] rounded-[8px] text-[13px] font-mono focus:border-[#7C3AED] focus:outline-none"
                     value={newRequest.startDate}
                     onChange={(e) =>
                       handleDatesChange(e.target.value, newRequest.endDate || e.target.value)
                     }
+                    className="w-full h-10 px-3 border border-[#E5E7EB] rounded-[10px] text-[13px] text-[#111827] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[12px] font-medium text-[#4B5563] block mb-1">
+                  <label className="block text-[13px] font-semibold text-[#374151] mb-1.5">
                     Đến ngày <span className="text-[#EF4444]">*</span>
                   </label>
                   <input
                     type="date"
                     required
-                    className="w-full h-10 px-3 border border-[#E5E7EB] rounded-[8px] text-[13px] font-mono focus:border-[#7C3AED] focus:outline-none"
                     value={newRequest.endDate}
                     onChange={(e) =>
                       handleDatesChange(newRequest.startDate || e.target.value, e.target.value)
                     }
+                    className="w-full h-10 px-3 border border-[#E5E7EB] rounded-[10px] text-[13px] text-[#111827] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[12px] font-medium text-[#4B5563] block mb-1">
-                  Tổng số ngày nghỉ tính theo công <span className="text-[#EF4444]">*</span>
+                <label className="block text-[13px] font-semibold text-[#374151] mb-1.5">
+                  Số ngày công đăng ký nghỉ
                 </label>
                 <input
                   type="number"
-                  min="0.5"
                   step="0.5"
+                  min="0.5"
                   required
-                  className="w-full h-10 px-3 border border-[#E5E7EB] rounded-[8px] text-[13px] font-mono focus:border-[#7C3AED] focus:outline-none"
-                  value={newRequest.totalDays || ""}
+                  value={newRequest.totalDays}
                   onChange={(e) =>
-                    setNewRequest({ ...newRequest, totalDays: Number(e.target.value) })
+                    setNewRequest((prev) => ({
+                      ...prev,
+                      totalDays: parseFloat(e.target.value),
+                    }))
                   }
+                  className="w-full h-10 px-3 border border-[#E5E7EB] rounded-[10px] text-[13px] text-[#111827] font-semibold focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
                 />
               </div>
 
               <div>
-                <label className="text-[12px] font-medium text-[#4B5563] block mb-1">
-                  Lý do xin nghỉ phép <span className="text-[#EF4444]">*</span>
+                <label className="block text-[13px] font-semibold text-[#374151] mb-1.5">
+                  Lý do xin nghỉ <span className="text-[#EF4444]">*</span>
                 </label>
                 <textarea
-                  rows={2}
+                  rows={3}
                   required
-                  placeholder="VD: Gia đình có việc riêng cần giải quyết..."
-                  className="w-full p-3 border border-[#E5E7EB] rounded-[8px] text-[13px] focus:border-[#7C3AED] focus:outline-none"
-                  value={newRequest.reason || ""}
+                  value={newRequest.reason}
                   onChange={(e) =>
-                    setNewRequest({ ...newRequest, reason: e.target.value })
+                    setNewRequest((prev) => ({ ...prev, reason: e.target.value }))
                   }
+                  placeholder="Nêu rõ lý do xin nghỉ và kế hoạch bàn giao công việc..."
+                  className="w-full p-3 border border-[#E5E7EB] rounded-[10px] text-[13px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 resize-none"
                 />
               </div>
 
               <div>
-                <label className="text-[12px] font-medium text-[#4B5563] block mb-1">
-                  Đường dẫn tài liệu / Giấy xác nhận y tế (nếu có)
+                <label className="block text-[13px] font-semibold text-[#374151] mb-1.5">
+                  Link tài liệu / Minh chứng (Tùy chọn)
                 </label>
                 <input
                   type="url"
-                  placeholder="https://storage.company.com/leaves/evidence.pdf"
-                  className="w-full h-10 px-3 border border-[#E5E7EB] rounded-[8px] text-[13px] font-mono focus:border-[#7C3AED] focus:outline-none"
                   value={newRequest.attachmentUrl || ""}
                   onChange={(e) =>
-                    setNewRequest({ ...newRequest, attachmentUrl: e.target.value })
+                    setNewRequest((prev) => ({
+                      ...prev,
+                      attachmentUrl: e.target.value,
+                    }))
                   }
+                  placeholder="https://drive.google.com/... hoặc link ảnh giấy khám"
+                  className="w-full h-10 px-3 border border-[#E5E7EB] rounded-[10px] text-[13px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#E5E7EB]">
+              <div className="pt-2 flex items-center justify-end gap-3 border-t border-[#E5E7EB]">
                 <button
                   type="button"
-                  disabled={isSubmitting}
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="h-10 px-4 rounded-[8px] border border-[#E5E7EB] text-[13px] font-medium text-[#4B5563] hover:bg-[#F3F4F6] cursor-pointer"
+                  className="px-4 h-10 rounded-[10px] border border-[#E5E7EB] text-[13px] font-medium text-[#4B5563] hover:bg-[#F9FAFB] transition-colors cursor-pointer"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="h-10 px-5 rounded-[8px] bg-[#7C3AED] hover:bg-[#5B21B6] text-white text-[13px] font-medium shadow-xs cursor-pointer inline-flex items-center gap-2"
+                  className="px-5 h-10 rounded-[10px] bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-[13px] font-semibold shadow-xs transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmitting && (
-                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  )}
-                  <span>Gửi đơn xin nghỉ</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Phê duyệt / Từ chối (Manager / HR) */}
-      {reviewingRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-[16px] max-w-md w-full p-6 shadow-xl border border-[#E5E7EB] space-y-4 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-3">
-              <h3 className="font-heading text-[18px] font-semibold text-[#111827]">
-                {reviewAction === "approve" ? "Phê duyệt đơn nghỉ phép" : "Từ chối đơn nghỉ phép"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setReviewingRequest(null)}
-                className="text-[#6B7280] hover:text-[#111827] p-1 rounded-md cursor-pointer"
-              >
-                <Icon name="close" size={18} />
-              </button>
-            </div>
-
-            <div className="bg-[#F9FAFB] p-3 rounded-[8px] text-[12px] space-y-1 text-[#4B5563]">
-              <p>
-                Mã đơn: <strong className="text-[#7C3AED]">{reviewingRequest.requestCode}</strong>
-              </p>
-              <p>
-                Nhân viên: <strong className="text-[#111827]">{reviewingRequest.employeeName}</strong> ({reviewingRequest.employeeCode})
-              </p>
-              <p>
-                Loại phép: <strong>{reviewingRequest.leaveTypeName}</strong> ({reviewingRequest.totalDays} ngày)
-              </p>
-              <p>
-                Thời gian: {formatDateVN(reviewingRequest.startDate)} → {formatDateVN(reviewingRequest.endDate)}
-              </p>
-              <p className="italic">Lý do: &quot;{reviewingRequest.reason}&quot;</p>
-            </div>
-
-            <form onSubmit={handleReviewSubmit} className="space-y-4">
-              <div>
-                <label className="text-[12px] font-medium text-[#4B5563] block mb-1">
-                  Nhận xét phê duyệt / Lý do từ chối
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder={reviewAction === "approve" ? "Đồng ý cho nghỉ phép theo kế hoạch..." : "Từ chối do trùng lịch cao điểm bàn giao dự án..."}
-                  className="w-full p-3 border border-[#E5E7EB] rounded-[8px] text-[13px] focus:border-[#7C3AED] focus:outline-none"
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  disabled={isReviewing}
-                  onClick={() => setReviewingRequest(null)}
-                  className="h-9 px-4 rounded-[8px] border border-[#E5E7EB] text-[13px] font-medium text-[#4B5563] hover:bg-[#F3F4F6] cursor-pointer"
-                >
-                  Đóng
-                </button>
-                <button
-                  type="submit"
-                  disabled={isReviewing}
-                  className={`h-9 px-4 rounded-[8px] text-white text-[13px] font-medium shadow-xs cursor-pointer inline-flex items-center gap-1.5 ${
-                    reviewAction === "approve"
-                      ? "bg-[#059669] hover:bg-[#047857]"
-                      : "bg-[#DC2626] hover:bg-[#B91C1C]"
-                  }`}
-                >
-                  {isReviewing && (
-                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  )}
-                  <span>{reviewAction === "approve" ? "Xác nhận Phê duyệt" : "Xác nhận Từ chối"}</span>
+                  <Icon name="check_circle" size={16} />
+                  <span>{isSubmitting ? "Đang gửi đơn..." : "Gửi đơn xét duyệt"}</span>
                 </button>
               </div>
             </form>

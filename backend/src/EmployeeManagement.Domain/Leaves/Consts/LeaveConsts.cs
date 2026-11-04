@@ -22,3 +22,4 @@ public static class LeaveConsts
         public static readonly string[] All = [Pending, Approved, Rejected, Cancelled];
     }
 }
+

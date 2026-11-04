@@ -169,3 +169,4 @@ public class CheckInCommandHandler : IRequestHandler<CheckInCommand, AttendanceL
             log.Notes);
     }
 }
+

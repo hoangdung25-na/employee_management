@@ -66,3 +66,4 @@ public class WorkShiftConfiguration : IEntityTypeConfiguration<WorkShift>
             .IsUnique();
     }
 }
+

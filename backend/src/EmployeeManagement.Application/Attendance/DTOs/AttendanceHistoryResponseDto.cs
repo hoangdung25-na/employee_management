@@ -14,3 +14,4 @@ public record AttendanceHistoryResponseDto(
     decimal TotalOvertimeHours,
     IReadOnlyList<AttendanceLogDto> Items
 );
+

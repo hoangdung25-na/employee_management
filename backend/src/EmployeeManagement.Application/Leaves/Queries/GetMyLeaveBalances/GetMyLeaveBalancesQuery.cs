@@ -107,3 +107,4 @@ public class GetMyLeaveBalancesQueryHandler : IRequestHandler<GetMyLeaveBalances
         return result;
     }
 }
+

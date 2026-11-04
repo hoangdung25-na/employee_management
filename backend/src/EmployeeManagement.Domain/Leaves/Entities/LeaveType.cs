@@ -19,3 +19,4 @@ public class LeaveType : BaseEntity
     public ICollection<LeaveBalance> LeaveBalances { get; set; } = new List<LeaveBalance>();
     public ICollection<LeaveRequest> LeaveRequests { get; set; } = new List<LeaveRequest>();
 }
+

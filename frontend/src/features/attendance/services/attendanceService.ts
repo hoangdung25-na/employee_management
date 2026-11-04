@@ -52,3 +52,4 @@ export async function getAttendanceHistory(params: {
 export async function getWorkShifts(): Promise<WorkShift[]> {
   return apiGet<WorkShift[]>("/attendance/shifts");
 }
+

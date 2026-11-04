@@ -41,3 +41,4 @@ public class GetWorkShiftsQueryHandler : IRequestHandler<GetWorkShiftsQuery, IRe
             .ToListAsync(cancellationToken);
     }
 }
+

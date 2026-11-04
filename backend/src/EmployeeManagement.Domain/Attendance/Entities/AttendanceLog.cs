@@ -27,3 +27,4 @@ public class AttendanceLog : BaseEntity
     public Employee Employee { get; set; } = null!;
     public WorkShift WorkShift { get; set; } = null!;
 }
+

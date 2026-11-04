@@ -26,3 +26,4 @@ public record LeaveRequestDto(
     string? ReviewComment,
     DateTime CreatedAt
 );
+

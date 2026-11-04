@@ -147,3 +147,4 @@ public class CheckOutCommandHandler : IRequestHandler<CheckOutCommand, Attendanc
             log.Notes);
     }
 }
+

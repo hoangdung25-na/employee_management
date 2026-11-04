@@ -45,7 +45,14 @@ export type IconName =
   | "attachment"
   | "delete"
   | "warning"
-  | "bolt";
+  | "bolt"
+  | "chevron_left"
+  | "sync"
+  | "info"
+  | "lock"
+  | "done_all"
+  | "beach_access"
+  | "account_balance_wallet";
 
 interface IconProps extends React.SVGProps<SVGSVGElement> {
   name: IconName;
@@ -406,6 +413,52 @@ export function Icon({ name, size = 20, className = "", ...props }: IconProps) {
       return (
         <svg {...commonProps}>
           <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+        </svg>
+      );
+    case "chevron_left":
+      return (
+        <svg {...commonProps}>
+          <path d="m15 18-6-6 6-6" />
+        </svg>
+      );
+    case "sync":
+      return (
+        <svg {...commonProps}>
+          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3" />
+        </svg>
+      );
+    case "info":
+      return (
+        <svg {...commonProps}>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 16v-4" />
+          <path d="M12 8h.01" />
+        </svg>
+      );
+    case "lock":
+      return (
+        <svg {...commonProps}>
+          <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+      );
+    case "done_all":
+      return (
+        <svg {...commonProps}>
+          <path d="m7 12 5 5L22 7M2 12l5 5m5-5 5-5" />
+        </svg>
+      );
+    case "beach_access":
+      return (
+        <svg {...commonProps}>
+          <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+        </svg>
+      );
+    case "account_balance_wallet":
+      return (
+        <svg {...commonProps}>
+          <path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z" />
+          <path d="M16 14h.01M2 10V5a2 2 0 0 1 2-2h14" />
         </svg>
       );
     default:

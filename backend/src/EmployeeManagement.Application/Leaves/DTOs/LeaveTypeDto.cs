@@ -13,3 +13,4 @@ public record LeaveTypeDto(
     string? Description,
     bool IsActive
 );
+

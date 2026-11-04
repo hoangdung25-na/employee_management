@@ -66,3 +66,4 @@ export async function reviewLeaveRequest(
 export async function cancelLeaveRequest(id: string): Promise<boolean> {
   return apiPut<boolean>(`/leaves/requests/${id}/cancel`, {});
 }
+

@@ -27,3 +27,4 @@ public class LeaveRequest : BaseEntity
     public LeaveType LeaveType { get; set; } = null!;
     public Employee? ReviewedByEmployee { get; set; }
 }
+

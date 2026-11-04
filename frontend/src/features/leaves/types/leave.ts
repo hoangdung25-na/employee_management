@@ -58,3 +58,4 @@ export interface CreateLeaveRequestInput {
   attachmentUrl?: string;
   targetEmployeeId?: string;
 }
+

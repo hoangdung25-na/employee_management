@@ -11,3 +11,4 @@ public record CheckInCommand(
     string? IpAddress = null,
     string? Notes = null
 ) : IRequest<AttendanceLogDto>;
+

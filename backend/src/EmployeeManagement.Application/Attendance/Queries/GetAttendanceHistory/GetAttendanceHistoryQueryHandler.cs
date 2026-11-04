@@ -103,3 +103,4 @@ public class GetAttendanceHistoryQueryHandler : IRequestHandler<GetAttendanceHis
             items);
     }
 }
+

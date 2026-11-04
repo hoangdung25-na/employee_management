@@ -39,3 +39,4 @@ public class GetLeaveTypesQueryHandler : IRequestHandler<GetLeaveTypesQuery, IRe
             .ToListAsync(cancellationToken);
     }
 }
+

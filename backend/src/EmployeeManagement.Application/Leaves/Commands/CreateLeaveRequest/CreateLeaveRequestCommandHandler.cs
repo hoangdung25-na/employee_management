@@ -218,3 +218,4 @@ public class CreateLeaveRequestCommandHandler : IRequestHandler<CreateLeaveReque
         throw new BadRequestException("Không thể cấp mã đơn nghỉ phép do xung đột dữ liệu đồng thời. Vui lòng thử lại.");
     }
 }
+

@@ -59,3 +59,4 @@ public class LeaveTypeConfiguration : IEntityTypeConfiguration<LeaveType>
             .IsUnique();
     }
 }
+

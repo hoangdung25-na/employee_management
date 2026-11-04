@@ -22,3 +22,4 @@ public class LeaveBalance : BaseEntity
     public Employee Employee { get; set; } = null!;
     public LeaveType LeaveType { get; set; } = null!;
 }
+

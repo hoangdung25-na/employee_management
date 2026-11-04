@@ -79,3 +79,4 @@ public class LeaveRequestConfiguration : IEntityTypeConfiguration<LeaveRequest>
         builder.HasIndex(lr => new { lr.EmployeeId, lr.Status });
     }
 }
+

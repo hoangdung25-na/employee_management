@@ -19,3 +19,4 @@ public record TodayAttendanceStatusDto(
     bool CanCheckIn,
     bool CanCheckOut
 );
+

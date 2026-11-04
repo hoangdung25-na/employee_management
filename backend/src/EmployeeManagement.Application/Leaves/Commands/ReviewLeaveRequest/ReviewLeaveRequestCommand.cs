@@ -11,3 +11,4 @@ public record ReviewLeaveRequestCommand(
     bool IsApproved,
     string? ReviewComment = null
 ) : IRequest<LeaveRequestDto>;
+

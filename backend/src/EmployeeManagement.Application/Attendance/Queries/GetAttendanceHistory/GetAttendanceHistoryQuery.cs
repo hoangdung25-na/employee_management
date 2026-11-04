@@ -12,3 +12,4 @@ public record GetAttendanceHistoryQuery(
     Guid? EmployeeId = null,
     Guid? DepartmentId = null
 ) : IRequest<AttendanceHistoryResponseDto>;
+

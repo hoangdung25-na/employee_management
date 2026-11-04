@@ -69,3 +69,4 @@ public class LeaveBalanceConfiguration : IEntityTypeConfiguration<LeaveBalance>
             .IsUnique();
     }
 }
+

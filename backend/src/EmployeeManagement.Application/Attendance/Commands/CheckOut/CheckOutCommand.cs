@@ -10,3 +10,4 @@ public record CheckOutCommand(
     Guid? TargetEmployeeId = null,
     string? Notes = null
 ) : IRequest<AttendanceLogDto>;
+

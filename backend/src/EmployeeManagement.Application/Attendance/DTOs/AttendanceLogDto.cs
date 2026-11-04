@@ -23,3 +23,4 @@ public record AttendanceLogDto(
     string Status,
     string? Notes
 );
+

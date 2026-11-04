@@ -112,3 +112,4 @@ public class CheckOutRequest
     public Guid? EmployeeId { get; set; }
     public string? Notes { get; set; }
 }
+

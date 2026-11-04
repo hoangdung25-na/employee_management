@@ -4,6 +4,9 @@ using EmployeeManagement.Application;
 using EmployeeManagement.Infrastructure;
 using Serilog;
 
+// Load environment variables from .env file using DotNetEnv
+DotNetEnv.Env.TraversePath().Load();
+
 // Initialize Serilog Bootstrap Logger to capture startup errors
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()

@@ -18,3 +18,4 @@ public record LeaveBalanceDto(
     decimal PendingDays,
     decimal RemainingDays
 );
+

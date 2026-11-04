@@ -34,3 +34,4 @@ public static class AttendanceConsts
         public static readonly string[] All = [Present, Late, EarlyLeave, HalfDay, Absent, OnLeave];
     }
 }
+

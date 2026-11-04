@@ -117,3 +117,4 @@ public class GetTodayAttendanceQueryHandler : IRequestHandler<GetTodayAttendance
             canCheckOut);
     }
 }
+

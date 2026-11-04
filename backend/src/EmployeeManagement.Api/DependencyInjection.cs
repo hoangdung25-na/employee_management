@@ -26,12 +26,26 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // 1. Strict CORS Policy for Next.js Frontend (SECURITY_HARDENING_RULES.md Rule #2)
+        // 1. Strict CORS Policy for Next.js Frontend (configurable via Cors:AllowedOrigins or CORS_ALLOWED_ORIGINS)
         services.AddCors(options =>
         {
             options.AddPolicy(NextJsCorsPolicyName, policy =>
             {
-                policy.WithOrigins("http://localhost:3000", "https://localhost:3000")
+                var allowedOriginsString = configuration["Cors:AllowedOrigins"];
+                if (string.IsNullOrWhiteSpace(allowedOriginsString))
+                {
+                    allowedOriginsString = configuration["CORS_ALLOWED_ORIGINS"];
+                }
+                var allowedOrigins = !string.IsNullOrWhiteSpace(allowedOriginsString)
+                    ? allowedOriginsString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    : configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+
+                if (allowedOrigins == null || allowedOrigins.Length == 0)
+                {
+                    allowedOrigins = ["http://localhost:3000", "https://localhost:3000"];
+                }
+
+                policy.WithOrigins(allowedOrigins)
                       .WithHeaders("Content-Type", "Authorization", "Accept", "X-Requested-With")
                       .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                       .AllowCredentials();
@@ -75,8 +89,24 @@ public static class DependencyInjection
         });
 
         // 3. JWT Bearer Authentication (SECURITY_HARDENING_RULES.md Rule #5)
-        var jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
-            ?? throw new InvalidOperationException("JwtSettings section is missing in configuration.");
+        var jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>() ?? new JwtSettings();
+        if (string.IsNullOrWhiteSpace(jwtSettings.SecretKey))
+        {
+            jwtSettings.SecretKey = configuration["JWT_SECRET_KEY"] ?? string.Empty;
+        }
+        if (string.IsNullOrWhiteSpace(jwtSettings.Issuer))
+        {
+            jwtSettings.Issuer = configuration["JWT_ISSUER"] ?? "EmployeeManagementApi";
+        }
+        if (string.IsNullOrWhiteSpace(jwtSettings.Audience))
+        {
+            jwtSettings.Audience = configuration["JWT_AUDIENCE"] ?? "EmployeeManagementApp";
+        }
+
+        if (string.IsNullOrWhiteSpace(jwtSettings.SecretKey))
+        {
+            throw new InvalidOperationException("JwtSettings:SecretKey section is missing in configuration and environment.");
+        }
 
         services.AddAuthentication(options =>
         {

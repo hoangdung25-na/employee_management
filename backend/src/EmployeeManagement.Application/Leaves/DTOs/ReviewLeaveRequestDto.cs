@@ -8,3 +8,4 @@ public class ReviewLeaveRequestDto
     public bool IsApproved { get; set; }
     public string? ReviewComment { get; set; }
 }
+

@@ -83,3 +83,4 @@ public class AttendanceLogConfiguration : IEntityTypeConfiguration<AttendanceLog
         builder.HasIndex(al => new { al.AttendanceDate, al.Status });
     }
 }
+

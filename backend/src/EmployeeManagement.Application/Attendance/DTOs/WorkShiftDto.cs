@@ -15,3 +15,4 @@ public record WorkShiftDto(
     bool IsNightShift,
     bool IsActive
 );
+

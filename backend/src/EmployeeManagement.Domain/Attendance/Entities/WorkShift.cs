@@ -21,3 +21,4 @@ public class WorkShift : BaseEntity
     public ICollection<EmployeeShiftAssignment> ShiftAssignments { get; set; } = new List<EmployeeShiftAssignment>();
     public ICollection<AttendanceLog> AttendanceLogs { get; set; } = new List<AttendanceLog>();
 }
+
