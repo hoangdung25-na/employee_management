@@ -8,6 +8,7 @@ interface PaginationProps {
   totalCount: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  itemLabel?: string;
 }
 
 export function Pagination({
@@ -16,6 +17,7 @@ export function Pagination({
   totalCount,
   totalPages,
   onPageChange,
+  itemLabel = "bản ghi",
 }: PaginationProps) {
   if (totalCount === 0) return null;
 
@@ -29,7 +31,7 @@ export function Pagination({
         <span className="font-semibold text-[#111827]">{startItem}</span> –{" "}
         <span className="font-semibold text-[#111827]">{endItem}</span> trên tổng
         số <span className="font-semibold text-[#7C3AED]">{totalCount}</span>{" "}
-        thành viên đội ngũ
+        {itemLabel}
       </p>
 
       <div className="flex items-center gap-2">
@@ -58,4 +60,3 @@ export function Pagination({
     </div>
   );
 }
-

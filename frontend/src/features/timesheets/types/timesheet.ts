@@ -64,5 +64,7 @@ export interface TimesheetQueryParams {
   projectCode?: string;
   status?: string;
   departmentId?: string;
+  pageNumber?: number;
+  pageSize?: number;
 }
 

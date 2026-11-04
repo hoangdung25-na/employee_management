@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { formatDateVN } from "@/lib/utils/format";
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { Pagination } from "@/components/shared/Pagination";
 import {
   CreateTimesheetEntryInput,
   TimesheetEntry,
@@ -95,7 +96,13 @@ export default function TimesheetsPage() {
   const [currentMonday, setCurrentMonday] = useState<Date>(DEFAULT_ACTIVE_MONDAY);
   const [todayDateString, setTodayDateString] = useState<string>("2026-11-04");
 
+  // Data & Pagination States
   const [entries, setEntries] = useState<TimesheetEntry[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(20);
+
   const [summary, setSummary] = useState<TimesheetSummary | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -146,23 +153,34 @@ export default function TimesheetsPage() {
   const fromDateISO = weekDays[0].date;
   const toDateISO = weekDays[6].date;
 
-  // Load Data
+  // Load Data with server pagination
   const loadData = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
+      const isMatrix = viewMode === "matrix";
       const [listRes, sumRes] = await Promise.all([
         getTimesheets({
           fromDate: viewMode === "queue" ? undefined : fromDateISO,
           toDate: viewMode === "queue" ? undefined : toDateISO,
-          status: viewMode === "queue" ? "Submitted" : undefined,
+          status:
+            viewMode === "queue"
+              ? "Submitted"
+              : statusFilter !== "ALL"
+              ? statusFilter
+              : undefined,
+          projectCode: projectFilter !== "ALL" ? projectFilter : undefined,
+          pageNumber: isMatrix ? 1 : currentPage,
+          pageSize: isMatrix ? 100 : pageSize,
         }),
         getTimesheetSummary({
           fromDate: fromDateISO,
           toDate: toDateISO,
         }),
       ]);
-      setEntries(listRes);
+      setEntries(listRes.items || []);
+      setTotalCount(listRes.totalCount || 0);
+      setTotalPages(listRes.totalPages || 1);
       setSummary(sumRes);
     } catch (err: unknown) {
       const errMessage =
@@ -171,7 +189,15 @@ export default function TimesheetsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [fromDateISO, toDateISO, viewMode]);
+  }, [
+    fromDateISO,
+    toDateISO,
+    viewMode,
+    statusFilter,
+    projectFilter,
+    currentPage,
+    pageSize,
+  ]);
 
   useEffect(() => {
     loadData();
@@ -187,10 +213,12 @@ export default function TimesheetsPage() {
   // Week Navigation handlers
   const handlePrevWeek = () => {
     setCurrentMonday((prev) => addDays(prev, -7));
+    setCurrentPage(1);
   };
 
   const handleNextWeek = () => {
     setCurrentMonday((prev) => addDays(prev, 7));
+    setCurrentPage(1);
   };
 
   const handleTodayWeek = () => {
@@ -200,6 +228,7 @@ export default function TimesheetsPage() {
     } else {
       setCurrentMonday(DEFAULT_ACTIVE_MONDAY);
     }
+    setCurrentPage(1);
   };
 
   // Entry Modal Triggers
@@ -232,7 +261,10 @@ export default function TimesheetsPage() {
     submitImmediately: boolean
   ) => {
     if (isEdit && selectedEntryForEdit) {
-      await updateTimesheetEntry(selectedEntryForEdit.id, data as UpdateTimesheetEntryInput);
+      await updateTimesheetEntry(
+        selectedEntryForEdit.id,
+        data as UpdateTimesheetEntryInput
+      );
       setToastMessage(
         submitImmediately
           ? "Đã cập nhật và nộp phê duyệt timesheet thành công."
@@ -314,33 +346,26 @@ export default function TimesheetsPage() {
 
   // Distinct Project Codes for filter
   const distinctProjects = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(["PRJ-HRFLOW", "PRJ-CORE", "PRJ-ERP"]);
     entries.forEach((e) => set.add(e.projectCode));
     return Array.from(set);
   }, [entries]);
 
-  // Filtered Entries for List View
-  const filteredEntries = useMemo(() => {
+  // Filtered/Displayed Entries (for local client search query)
+  const displayedEntries = useMemo(() => {
+    if (!searchQuery.trim()) return entries;
+    const q = searchQuery.toLowerCase().trim();
     return entries.filter((entry) => {
-      // Status
-      if (statusFilter !== "ALL" && entry.status !== statusFilter) {
-        return false;
-      }
-      // Project
-      if (projectFilter !== "ALL" && entry.projectCode !== projectFilter) {
-        return false;
-      }
-      // Search
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchTitle = entry.taskTitle.toLowerCase().includes(q);
-        const matchProj = entry.projectName.toLowerCase().includes(q) || entry.projectCode.toLowerCase().includes(q);
-        const matchEmp = entry.employeeFullName.toLowerCase().includes(q) || entry.employeeCode.toLowerCase().includes(q);
-        if (!matchTitle && !matchProj && !matchEmp) return false;
-      }
-      return true;
+      const matchTitle = entry.taskTitle.toLowerCase().includes(q);
+      const matchProj =
+        entry.projectName.toLowerCase().includes(q) ||
+        entry.projectCode.toLowerCase().includes(q);
+      const matchEmp =
+        entry.employeeFullName.toLowerCase().includes(q) ||
+        entry.employeeCode.toLowerCase().includes(q);
+      return matchTitle || matchProj || matchEmp;
     });
-  }, [entries, statusFilter, projectFilter, searchQuery]);
+  }, [entries, searchQuery]);
 
   // Pending count for approval tab badge
   const pendingQueueCount = useMemo(() => {
@@ -518,7 +543,10 @@ export default function TimesheetsPage() {
         <div className="flex items-center p-1 rounded-lg bg-[#F3F4F6] border border-[#E5E7EB] text-[13px] font-medium">
           <button
             type="button"
-            onClick={() => setViewMode("matrix")}
+            onClick={() => {
+              setViewMode("matrix");
+              setCurrentPage(1);
+            }}
             className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
               viewMode === "matrix"
                 ? "bg-white text-[#7C3AED] shadow-xs font-semibold"
@@ -531,7 +559,10 @@ export default function TimesheetsPage() {
 
           <button
             type="button"
-            onClick={() => setViewMode("list")}
+            onClick={() => {
+              setViewMode("list");
+              setCurrentPage(1);
+            }}
             className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
               viewMode === "list"
                 ? "bg-white text-[#7C3AED] shadow-xs font-semibold"
@@ -539,13 +570,16 @@ export default function TimesheetsPage() {
             }`}
           >
             <Icon name="description" size={15} />
-            <span>Bảng kê chi tiết ({entries.length})</span>
+            <span>Bảng kê chi tiết ({totalCount})</span>
           </button>
 
           {canReview && (
             <button
               type="button"
-              onClick={() => setViewMode("queue")}
+              onClick={() => {
+                setViewMode("queue");
+                setCurrentPage(1);
+              }}
               className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
                 viewMode === "queue"
                   ? "bg-white text-[#7C3AED] shadow-xs font-semibold"
@@ -585,7 +619,10 @@ export default function TimesheetsPage() {
           {/* Project Dropdown */}
           <select
             value={projectFilter}
-            onChange={(e) => setProjectFilter(e.target.value)}
+            onChange={(e) => {
+              setProjectFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="h-9 px-3 rounded-lg border border-[#E5E7EB] bg-white text-[#111827] text-[12px] font-medium focus:outline-none focus:border-[#7C3AED]"
           >
             <option value="ALL">Tất cả dự án</option>
@@ -602,7 +639,10 @@ export default function TimesheetsPage() {
               <button
                 key={st}
                 type="button"
-                onClick={() => setStatusFilter(st)}
+                onClick={() => {
+                  setStatusFilter(st);
+                  setCurrentPage(1);
+                }}
                 className={`px-2.5 py-1 rounded text-[11px] font-medium transition-all ${
                   statusFilter === st
                     ? "bg-white text-[#7C3AED] shadow-xs font-semibold"
@@ -621,6 +661,24 @@ export default function TimesheetsPage() {
               </button>
             ))}
           </div>
+
+          {/* Page size select in list mode */}
+          {viewMode !== "matrix" && (
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="h-9 px-2.5 rounded-lg border border-[#E5E7EB] bg-white text-[#4B5563] text-[12px] font-medium focus:outline-none focus:border-[#7C3AED]"
+              title="Số dòng / trang"
+            >
+              <option value={10}>10 dòng</option>
+              <option value={20}>20 dòng</option>
+              <option value={50}>50 dòng</option>
+              <option value={100}>100 dòng</option>
+            </select>
+          )}
         </div>
       </div>
 
@@ -646,7 +704,7 @@ export default function TimesheetsPage() {
         /* View 1: Weekly Matrix */
         <TimesheetWeeklyGrid
           days={weekDays}
-          entries={filteredEntries}
+          entries={displayedEntries}
           onOpenCreate={handleOpenCreate}
           onOpenEdit={handleOpenEdit}
           onOpenReview={handleOpenReview}
@@ -671,7 +729,7 @@ export default function TimesheetsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E5E7EB]">
-                {filteredEntries.length === 0 ? (
+                {displayedEntries.length === 0 ? (
                   <tr>
                     <td
                       colSpan={9}
@@ -681,7 +739,7 @@ export default function TimesheetsPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredEntries.map((item) => {
+                  displayedEntries.map((item) => {
                     const st = STATUS_CONFIG[item.status] || STATUS_CONFIG.Draft;
                     const isOwner = item.employeeId === session?.employeeId;
                     return (
@@ -806,7 +864,9 @@ export default function TimesheetsPage() {
                             )}
 
                             {/* Delete action */}
-                            {(item.status !== "Approved" || hasRole("SUPER_ADMIN") || hasRole("HR_MANAGER")) && (
+                            {(item.status !== "Approved" ||
+                              hasRole("SUPER_ADMIN") ||
+                              hasRole("HR_MANAGER")) && (
                               <button
                                 type="button"
                                 onClick={() => handleDeleteEntry(item)}
@@ -825,6 +885,16 @@ export default function TimesheetsPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination for list/queue view */}
+          <Pagination
+            pageNumber={currentPage}
+            pageSize={pageSize}
+            totalCount={totalCount}
+            totalPages={totalPages}
+            onPageChange={(page) => setCurrentPage(page)}
+            itemLabel="bản ghi timesheet"
+          />
         </div>
       )}
 

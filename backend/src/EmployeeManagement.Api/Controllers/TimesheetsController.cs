@@ -31,10 +31,10 @@ public class TimesheetsController : ControllerBase
     }
 
     /// <summary>
-    /// Retrieves timesheet entries with date range, project, status, and role-based data isolation.
+    /// Retrieves paginated timesheet entries with date range, project, status, and role-based data isolation.
     /// </summary>
     [HttpGet]
-    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<TimesheetEntryDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<TimesheetEntryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTimesheets(
         [FromQuery] DateOnly? fromDate,
         [FromQuery] DateOnly? toDate,
@@ -42,11 +42,13 @@ public class TimesheetsController : ControllerBase
         [FromQuery] string? projectCode,
         [FromQuery] string? status,
         [FromQuery] Guid? departmentId,
-        CancellationToken cancellationToken)
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
-        var query = new GetTimesheetsQuery(fromDate, toDate, employeeId, projectCode, status, departmentId);
+        var query = new GetTimesheetsQuery(fromDate, toDate, employeeId, projectCode, status, departmentId, pageNumber, pageSize);
         var result = await _sender.Send(query, cancellationToken);
-        return Ok(ApiResponse<IReadOnlyList<TimesheetEntryDto>>.SuccessResult(result, "Tải danh sách timesheet thành công."));
+        return Ok(ApiResponse<PagedResult<TimesheetEntryDto>>.SuccessResult(result, "Tải danh sách timesheet thành công."));
     }
 
     /// <summary>

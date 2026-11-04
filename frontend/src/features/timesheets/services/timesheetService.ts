@@ -1,4 +1,5 @@
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api/client";
+import { PagedResult } from "@/types/api";
 import {
   CreateTimesheetEntryInput,
   ReviewTimesheetEntryInput,
@@ -9,12 +10,12 @@ import {
 } from "../types/timesheet";
 
 /**
- * Lấy danh sách các bản ghi timesheet theo bộ lọc ngày, dự án, trạng thái và phân quyền.
+ * Lấy danh sách các bản ghi timesheet có phân trang theo bộ lọc ngày, dự án, trạng thái và phân quyền.
  */
 export async function getTimesheets(
   params?: TimesheetQueryParams
-): Promise<TimesheetEntry[]> {
-  return apiGet<TimesheetEntry[]>(
+): Promise<PagedResult<TimesheetEntry>> {
+  return apiGet<PagedResult<TimesheetEntry>>(
     "/timesheets",
     params as Record<string, unknown>
   );

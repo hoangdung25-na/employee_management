@@ -1,3 +1,4 @@
+using EmployeeManagement.Application.Common;
 using EmployeeManagement.Application.Interfaces;
 using EmployeeManagement.Application.Timesheets.DTOs;
 using EmployeeManagement.Domain.Users.Consts;
@@ -7,7 +8,8 @@ using Microsoft.EntityFrameworkCore;
 namespace EmployeeManagement.Application.Timesheets.Queries.GetTimesheets;
 
 /// <summary>
-/// Query to retrieve timesheet records with date range, project, status, and role-based data isolation.
+/// Query to retrieve paginated timesheet records with date range, project, status, and role-based data isolation.
+/// Strictly adheres to API_PERFORMANCE_RULES (AsNoTracking, Projection, Non-SARGable prevention, PageSize max 100).
 /// </summary>
 public record GetTimesheetsQuery(
     DateOnly? FromDate = null,
@@ -15,11 +17,14 @@ public record GetTimesheetsQuery(
     Guid? EmployeeId = null,
     string? ProjectCode = null,
     string? Status = null,
-    Guid? DepartmentId = null
-) : IRequest<IReadOnlyList<TimesheetEntryDto>>;
+    Guid? DepartmentId = null,
+    int PageNumber = 1,
+    int PageSize = 50
+) : IRequest<PagedResult<TimesheetEntryDto>>;
 
-public class GetTimesheetsQueryHandler : IRequestHandler<GetTimesheetsQuery, IReadOnlyList<TimesheetEntryDto>>
+public class GetTimesheetsQueryHandler : IRequestHandler<GetTimesheetsQuery, PagedResult<TimesheetEntryDto>>
 {
+    private const int MaxAllowedPageSize = 100;
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
 
@@ -31,7 +36,7 @@ public class GetTimesheetsQueryHandler : IRequestHandler<GetTimesheetsQuery, IRe
         _currentUserService = currentUserService;
     }
 
-    public async Task<IReadOnlyList<TimesheetEntryDto>> Handle(
+    public async Task<PagedResult<TimesheetEntryDto>> Handle(
         GetTimesheetsQuery request,
         CancellationToken cancellationToken)
     {
@@ -121,10 +126,24 @@ public class GetTimesheetsQueryHandler : IRequestHandler<GetTimesheetsQuery, IRe
             query = query.Where(t => t.Employee.DepartmentId == request.DepartmentId.Value);
         }
 
-        // 3. Projection to DTO
+        // 3. Count total records matching filters
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        // 4. Safe pagination clamping (Rule #3: MaxPageSize <= 100)
+        var pageNumber = request.PageNumber < 1 ? 1 : request.PageNumber;
+        var pageSize = request.PageSize switch
+        {
+            < 1 => 20,
+            > MaxAllowedPageSize => MaxAllowedPageSize,
+            _ => request.PageSize
+        };
+
+        // 5. Paginated projection
         var items = await query
             .OrderByDescending(t => t.WorkDate)
             .ThenByDescending(t => t.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
             .Select(t => new TimesheetEntryDto
             {
                 Id = t.Id,
@@ -148,6 +167,6 @@ public class GetTimesheetsQueryHandler : IRequestHandler<GetTimesheetsQuery, IRe
             })
             .ToListAsync(cancellationToken);
 
-        return items;
+        return new PagedResult<TimesheetEntryDto>(items, totalCount, pageNumber, pageSize);
     }
 }
