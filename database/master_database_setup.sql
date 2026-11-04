@@ -67,6 +67,7 @@ BEGIN
         IsActive BIT NOT NULL CONSTRAINT DF_Positions_IsActive DEFAULT (1),
         IsDeleted BIT NOT NULL CONSTRAINT DF_Positions_IsDeleted DEFAULT (0),
         CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Positions_CreatedAt DEFAULT (GETDATE()),
+        UpdatedAt DATETIME2 NULL,
 
         CONSTRAINT PK_Positions PRIMARY KEY CLUSTERED (Id)
     );

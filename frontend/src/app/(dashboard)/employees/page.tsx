@@ -5,6 +5,8 @@ import { useEmployees } from "@/features/employees/hooks/useEmployees";
 import { EmployeeTable } from "@/features/employees/components/EmployeeTable";
 import { EmployeeFormModal } from "@/features/employees/components/EmployeeFormModal";
 import { Pagination } from "@/components/shared/Pagination";
+import { MetricCard } from "@/components/ui/MetricCard";
+import { Icon } from "@/components/ui/Icon";
 import {
   EmployeeDetail,
   EmployeeStatus,
@@ -89,9 +91,9 @@ export default function EmployeesPage() {
     <div className="space-y-6">
       {/* Toast Alert */}
       {toastMessage && (
-        <div className="p-4 rounded-[8px] bg-[#ECFDF5] border border-[#059669] text-[#065F46] flex items-center justify-between shadow-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#059669]" />
+        <div className="p-4 rounded-[12px] bg-[#ECFDF5] border border-[#059669] text-[#065F46] flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#059669]" />
             <p className="text-[14px] font-medium">{toastMessage}</p>
           </div>
           <button
@@ -104,86 +106,68 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {/* Page Header — HRFlow h1: 32px bold, 40px line-height, Lexend */}
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-heading text-[32px] leading-[40px] font-bold text-[#111827]">
+          <h1 className="font-heading text-[28px] lg:text-[32px] leading-[40px] font-bold text-[#111827] tracking-tight">
             Thành viên Đội ngũ
           </h1>
-          <p className="text-[14px] leading-[22px] text-[#6B7280] mt-1">
-            Quản lý tập trung hồ sơ nhân sự, phòng ban và đãi ngộ nội bộ.
+          <p className="text-[14px] leading-[22px] text-[#6B7280] mt-0.5">
+            Quản lý tập trung hồ sơ nhân sự, chức danh và thông tin hợp đồng toàn doanh nghiệp.
           </p>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={refresh}
-            className="h-10 px-4 rounded-[8px] text-[14px] font-medium border border-[#7C3AED] text-[#7C3AED] bg-transparent hover:bg-[#F5F3FF] transition-colors cursor-pointer"
+            className="h-10 px-4 rounded-[8px] text-[13px] font-medium border border-[#E5E7EB] text-[#4B5563] bg-white hover:bg-[#F9FAFB] transition-colors cursor-pointer inline-flex items-center gap-1.5"
           >
-            Làm mới dữ liệu
+            <Icon name="history_edu" size={15} />
+            <span>Làm mới</span>
           </button>
           <button
             type="button"
             onClick={handleOpenCreate}
-            className="h-10 px-4 rounded-[8px] text-[14px] font-medium bg-[#7C3AED] text-white hover:bg-[#5B21B6] transition-colors shadow-xs cursor-pointer"
+            className="h-10 px-4 rounded-[8px] text-[13px] font-medium bg-[#7C3AED] text-white hover:bg-[#5B21B6] transition-colors shadow-xs cursor-pointer inline-flex items-center gap-2"
           >
-            + Tiếp nhận thành viên
+            <Icon name="add" size={16} />
+            <span>Tiếp nhận thành viên</span>
           </button>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div className="bg-white border border-[#E5E7EB] rounded-[8px] p-6 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] leading-[18px] font-medium text-[#6B7280] uppercase tracking-wider">
-              Tổng quy mô nhân sự
-            </span>
-            <span className="w-2.5 h-2.5 rounded-full bg-[#7C3AED]" />
-          </div>
-          <p className="font-heading text-[24px] leading-[32px] font-semibold text-[#111827] mt-2">
-            {data?.totalCount ?? 0}{" "}
-            <span className="text-[14px] font-normal text-[#6B7280]">
-              hồ sơ
-            </span>
-          </p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <MetricCard
+          title="Tổng quy mô nhân sự"
+          value={data?.totalCount ?? 0}
+          icon="groups"
+          subtitle="Hồ sơ nhân sự toàn hệ thống"
+        />
 
-        <div className="bg-white border border-[#E5E7EB] rounded-[8px] p-6 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] leading-[18px] font-medium text-[#6B7280] uppercase tracking-wider">
-              Đang làm việc chính thức
-            </span>
-            <span className="w-2.5 h-2.5 rounded-full bg-[#059669]" />
-          </div>
-          <p className="font-heading text-[24px] leading-[32px] font-semibold text-[#059669] mt-2">
-            {activeCount}{" "}
-            <span className="text-[14px] font-normal text-[#6B7280]">
-              trên trang hiện tại
-            </span>
-          </p>
-        </div>
+        <MetricCard
+          title="Đang làm việc chính thức"
+          value={activeCount}
+          icon="verified"
+          iconBgClass="bg-[#ECFDF5]"
+          iconColorClass="text-[#059669]"
+          subtitle="Thành viên chính thức"
+        />
 
-        <div className="bg-white border border-[#E5E7EB] rounded-[8px] p-6 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] leading-[18px] font-medium text-[#6B7280] uppercase tracking-wider">
-              Đang thử việc & Đào tạo
-            </span>
-            <span className="w-2.5 h-2.5 rounded-full bg-[#0D9488]" />
-          </div>
-          <p className="font-heading text-[24px] leading-[32px] font-semibold text-[#0D9488] mt-2">
-            {probationCount}{" "}
-            <span className="text-[14px] font-normal text-[#6B7280]">
-              trên trang hiện tại
-            </span>
-          </p>
-        </div>
+        <MetricCard
+          title="Đang thử việc & Đào tạo"
+          value={probationCount}
+          icon="military_tech"
+          iconBgClass="bg-[#F0FDFA]"
+          iconColorClass="text-[#0D9488]"
+          subtitle="Nhân sự giai đoạn Probation"
+        />
       </div>
 
       {/* Filter & Search Card */}
-      <div className="bg-white border border-[#E5E7EB] rounded-[8px] shadow-xs overflow-hidden">
+      <div className="bg-white border border-[#E5E7EB] rounded-[16px] shadow-xs overflow-hidden">
         <div className="p-6 border-b border-[#E5E7EB] space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             {/* Search Form */}
@@ -191,16 +175,22 @@ export default function EmployeesPage() {
               onSubmit={handleSearchSubmit}
               className="flex items-center gap-2 flex-1 max-w-xl"
             >
-              <input
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Tìm theo Họ tên, Mã EMP-xxxxx, Email hoặc SĐT..."
-                className="h-10 flex-1 px-3 py-2 rounded-[8px] border border-[#E5E7EB] bg-white text-[14px] leading-[22px] text-[#111827] placeholder:text-[#9CA3AF] hover:border-[#A78BFA] focus:outline-none focus:border-[#7C3AED] focus:ring-3 focus:ring-[#7C3AED]/25 transition-all"
-              />
+              <div className="relative flex-1">
+                <div className="absolute left-3 top-2.5 text-[#9CA3AF]">
+                  <Icon name="search" size={18} />
+                </div>
+                <input
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Tìm theo Họ tên, Mã EMP-xxxxx, Email hoặc SĐT..."
+                  className="w-full h-10 pl-9 pr-4 rounded-[8px] border border-[#E5E7EB] bg-white text-[13px] text-[#111827] placeholder:text-[#9CA3AF] hover:border-[#A78BFA] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                />
+              </div>
+
               <button
                 type="submit"
-                className="h-10 px-4 rounded-[8px] text-[14px] font-medium border border-[#7C3AED] text-[#7C3AED] bg-[#F5F3FF] hover:bg-[#EDE9FE] transition-colors cursor-pointer"
+                className="h-10 px-4 rounded-[8px] text-[13px] font-medium border border-[#7C3AED] text-[#7C3AED] bg-[#F5F3FF] hover:bg-[#EDE9FE] transition-colors cursor-pointer"
               >
                 Tìm kiếm
               </button>
@@ -211,7 +201,7 @@ export default function EmployeesPage() {
                     setSearchInput("");
                     resetFilters();
                   }}
-                  className="h-10 px-3 rounded-[8px] text-[14px] font-medium text-[#6B7280] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+                  className="h-10 px-3 rounded-[8px] text-[13px] font-medium text-[#6B7280] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
                 >
                   Xóa lọc
                 </button>
@@ -234,7 +224,7 @@ export default function EmployeesPage() {
                     onChange={(e) =>
                       updateFilters({ departmentId: e.target.value || undefined })
                     }
-                    className="h-10 px-3 py-2 rounded-[8px] border border-[#E5E7EB] bg-white text-[13px] text-[#111827] hover:border-[#A78BFA] focus:outline-none focus:border-[#7C3AED] focus:ring-3 focus:ring-[#7C3AED]/25"
+                    className="h-10 px-3 rounded-[8px] border border-[#E5E7EB] bg-white text-[13px] text-[#111827] hover:border-[#A78BFA] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
                   >
                     <option value="">Tất cả phòng ban</option>
                     {departments.map((dept) => (
@@ -265,7 +255,7 @@ export default function EmployeesPage() {
                     ];
                     updateFilters({ sortBy, sortOrder });
                   }}
-                  className="h-10 px-3 py-2 rounded-[8px] border border-[#E5E7EB] bg-white text-[13px] text-[#111827] hover:border-[#A78BFA] focus:outline-none focus:border-[#7C3AED] focus:ring-3 focus:ring-[#7C3AED]/25"
+                  className="h-10 px-3 rounded-[8px] border border-[#E5E7EB] bg-white text-[13px] text-[#111827] hover:border-[#A78BFA] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
                 >
                   <option value="EmployeeCode-asc">Mã NV (Tăng dần)</option>
                   <option value="EmployeeCode-desc">Mã NV (Giảm dần)</option>
@@ -278,7 +268,7 @@ export default function EmployeesPage() {
           </div>
 
           {/* Filter Chips */}
-          <div className="flex items-center flex-wrap gap-2">
+          <div className="flex items-center flex-wrap gap-2 pt-1">
             {STATUS_FILTERS.map((chip) => {
               const active = (filters.status ?? "") === chip.value;
               return (
@@ -288,7 +278,7 @@ export default function EmployeesPage() {
                   onClick={() => updateFilters({ status: chip.value })}
                   className={`px-3 py-1 rounded-full text-[12px] leading-[18px] font-medium transition-colors cursor-pointer ${
                     active
-                      ? "bg-[#F5F3FF] text-[#7C3AED] border border-[#7C3AED]"
+                      ? "bg-[#EDE9FE] text-[#7C3AED] border border-[#7C3AED]"
                       : "bg-[#F9FAFB] text-[#6B7280] border border-[#E5E7EB] hover:border-[#A78BFA] hover:text-[#7C3AED]"
                   }`}
                 >
@@ -301,7 +291,7 @@ export default function EmployeesPage() {
 
         {/* Error Banner */}
         {error && (
-          <div className="m-6 p-4 rounded-[8px] bg-[#FEF2F2] border border-[#EF4444] text-[#EF4444] flex items-center justify-between gap-4">
+          <div className="m-6 p-4 rounded-[12px] bg-[#FEF2F2] border border-[#EF4444] text-[#EF4444] flex items-center justify-between gap-4">
             <div>
               <p className="font-semibold text-[14px]">
                 Không thể kết nối dữ liệu từ máy chủ (.NET 8 Web API)

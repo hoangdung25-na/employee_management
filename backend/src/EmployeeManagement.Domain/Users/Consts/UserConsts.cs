@@ -62,6 +62,8 @@ public static class UserConsts
 
         // Expanded HRM & ESS Modules
         public const string DocumentManage = "Document.Manage";
+        public const string DecisionView = "Decision.View";
+        public const string DecisionManage = "Decision.Manage";
         public const string OnboardingManage = "Onboarding.Manage";
         public const string AttendanceCheckInSelf = "Attendance.CheckInSelf";
         public const string AttendanceManage = "Attendance.Manage";

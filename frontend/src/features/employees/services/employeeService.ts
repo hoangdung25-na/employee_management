@@ -16,6 +16,10 @@ import {
   CreateEmployeeContractInput,
   EmployeeContract,
 } from "@/features/employees/types/contract";
+import {
+  CreateDecisionInput,
+  EmployeeDecision,
+} from "@/features/employees/types/decision";
 
 /**
  * Gọi endpoint `GET /api/employees` lấy danh sách Thành viên Đội ngũ có phân trang & bộ lọc.
@@ -118,3 +122,44 @@ export async function createEmployeeContract(
     payload
   );
 }
+
+/**
+ * Lấy danh sách quyết định nhân sự (`GET /api/employees/{id:guid}/decisions`).
+ */
+export async function getEmployeeDecisions(
+  employeeId: string
+): Promise<EmployeeDecision[]> {
+  return apiGet<EmployeeDecision[]>(`/employees/${employeeId}/decisions`);
+}
+
+/**
+ * Ban hành quyết định nhân sự mới (`POST /api/employees/{id:guid}/decisions`).
+ */
+export async function createEmployeeDecision(
+  employeeId: string,
+  payload: CreateDecisionInput
+): Promise<EmployeeDecision> {
+  return apiPost<EmployeeDecision>(
+    `/employees/${employeeId}/decisions`,
+    payload
+  );
+}
+
+/**
+ * Lấy chi tiết quyết định nhân sự (`GET /api/decisions/{id:guid}`).
+ */
+export async function getDecisionById(
+  id: string
+): Promise<EmployeeDecision> {
+  return apiGet<EmployeeDecision>(`/decisions/${id}`);
+}
+
+/**
+ * Hủy bỏ / Xóa mềm quyết định nhân sự (`DELETE /api/decisions/{id:guid}`).
+ */
+export async function deleteDecision(
+  id: string
+): Promise<boolean> {
+  return apiDelete<boolean>(`/decisions/${id}`);
+}
+

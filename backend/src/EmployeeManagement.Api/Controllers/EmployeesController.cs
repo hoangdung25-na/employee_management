@@ -1,4 +1,5 @@
 using EmployeeManagement.Application.Common;
+using EmployeeManagement.Application.Employees.Commands.CreateDecision;
 using EmployeeManagement.Application.Employees.Commands.CreateEmployee;
 using EmployeeManagement.Application.Employees.Commands.CreateEmployeeContract;
 using EmployeeManagement.Application.Employees.Commands.CreateEmployeeDocument;
@@ -6,8 +7,10 @@ using EmployeeManagement.Application.Employees.Commands.DeleteEmployeeDocument;
 using EmployeeManagement.Application.Employees.Commands.TerminateEmployee;
 using EmployeeManagement.Application.Employees.Commands.UpdateEmployee;
 using EmployeeManagement.Application.Employees.DTOs;
+using EmployeeManagement.Application.Employees.Queries.GetDecisionById;
 using EmployeeManagement.Application.Employees.Queries.GetEmployeeById;
 using EmployeeManagement.Application.Employees.Queries.GetEmployeeContracts;
+using EmployeeManagement.Application.Employees.Queries.GetEmployeeDecisions;
 using EmployeeManagement.Application.Employees.Queries.GetEmployeeDocuments;
 using EmployeeManagement.Application.Employees.Queries.GetEmployees;
 using EmployeeManagement.Domain.Users.Consts;
@@ -245,5 +248,59 @@ public class EmployeesController : ControllerBase
         var response = ApiResponse<EmployeeContractDto>.SuccessResult(result, "Ký hợp đồng lao động mới thành công.");
 
         return CreatedAtAction(nameof(GetEmployeeContracts), new { id }, response);
+    }
+
+    /// <summary>
+    /// Retrieves all official legal/organizational decisions issued for an employee.
+    /// Accessible by HR roles or the employee themselves (ESS).
+    /// </summary>
+    [HttpGet("{id:guid}/decisions")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<EmployeeDecisionDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetEmployeeDecisions(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new GetEmployeeDecisionsQuery(id), cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<EmployeeDecisionDto>>.SuccessResult(result, "Lấy danh sách quyết định nhân sự thành công."));
+    }
+
+    /// <summary>
+    /// Issues a new official decision for an employee.
+    /// Automatically updates employee Department, Position, and BaseSalary on Transfer or Promotion.
+    /// </summary>
+    [HttpPost("{id:guid}/decisions")]
+    [Authorize(Policy = UserConsts.Permissions.DecisionManage)]
+    [ProducesResponseType(typeof(ApiResponse<EmployeeDecisionDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateEmployeeDecision(
+        Guid id,
+        [FromBody] CreateDecisionDto dto,
+        CancellationToken cancellationToken)
+    {
+        var effectiveDate = dto.EffectiveDate != default ? dto.EffectiveDate : DateOnly.FromDateTime(DateTime.UtcNow);
+        var signDate = dto.SignDate.HasValue && dto.SignDate.Value != default ? dto.SignDate.Value : effectiveDate;
+
+        var command = new CreateDecisionCommand(
+            id,
+            dto.DecisionType,
+            dto.Title,
+            effectiveDate,
+            signDate,
+            dto.SignerName,
+            dto.SignerPosition,
+            dto.Amount,
+            dto.NewDepartmentId,
+            dto.NewPositionId,
+            dto.NewSalary,
+            dto.Reason,
+            dto.AttachmentUrl,
+            dto.DecisionNumber);
+
+        var result = await _sender.Send(command, cancellationToken);
+        var response = ApiResponse<EmployeeDecisionDto>.SuccessResult(result, "Ban hành quyết định nhân sự thành công.");
+
+        return CreatedAtAction(nameof(GetEmployeeDecisions), new { id }, response);
     }
 }

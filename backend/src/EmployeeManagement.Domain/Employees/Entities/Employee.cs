@@ -55,8 +55,9 @@ public class Employee : BaseEntity
     // Optional 1 - 0..1 Identity account linkage
     public User? User { get; set; }
 
-    // Phase 5: Documents, Contracts & Onboarding/Offboarding relationships
+    // Phase 5: Documents, Contracts, Decisions & Onboarding/Offboarding relationships
     public ICollection<EmployeeDocument> Documents { get; set; } = new List<EmployeeDocument>();
     public ICollection<EmployeeContract> Contracts { get; set; } = new List<EmployeeContract>();
+    public ICollection<EmployeeDecision> Decisions { get; set; } = new List<EmployeeDecision>();
     public ICollection<EmployeeOnboardingTask> OnboardingTasks { get; set; } = new List<EmployeeOnboardingTask>();
 }

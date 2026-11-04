@@ -11,4 +11,5 @@ public static class CodeConsts
     public const string DepartmentCodeType = "Department";
     public const string PositionCodeType = "Position";
     public const string ContractCodeType = "Contract";
+    public const string DecisionCodeType = "Decision";
 }

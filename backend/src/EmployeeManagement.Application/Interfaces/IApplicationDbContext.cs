@@ -24,6 +24,7 @@ public interface IApplicationDbContext
     DbSet<RolePermission> RolePermissions { get; }
     DbSet<EmployeeDocument> EmployeeDocuments { get; }
     DbSet<EmployeeContract> EmployeeContracts { get; }
+    DbSet<EmployeeDecision> EmployeeDecisions { get; }
     DbSet<OnboardingTemplate> OnboardingTemplates { get; }
     DbSet<EmployeeOnboardingTask> EmployeeOnboardingTasks { get; }
 
