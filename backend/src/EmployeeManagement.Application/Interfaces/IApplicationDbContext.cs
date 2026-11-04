@@ -4,6 +4,7 @@ using EmployeeManagement.Domain.Departments.Entities;
 using EmployeeManagement.Domain.Employees.Entities;
 using EmployeeManagement.Domain.Leaves.Entities;
 using EmployeeManagement.Domain.Positions.Entities;
+using EmployeeManagement.Domain.Timesheets.Entities;
 using EmployeeManagement.Domain.Users.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -37,6 +38,9 @@ public interface IApplicationDbContext
     DbSet<LeaveType> LeaveTypes { get; }
     DbSet<LeaveBalance> LeaveBalances { get; }
     DbSet<LeaveRequest> LeaveRequests { get; }
+
+    // Phase 7: Timesheet Management
+    DbSet<TimesheetEntry> TimesheetEntries { get; }
 
     DatabaseFacade Database { get; }
 

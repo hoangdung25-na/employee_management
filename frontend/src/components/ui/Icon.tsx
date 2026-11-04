@@ -52,7 +52,9 @@ export type IconName =
   | "lock"
   | "done_all"
   | "beach_access"
-  | "account_balance_wallet";
+  | "account_balance_wallet"
+  | "schedule"
+  | "hourglass_top";
 
 interface IconProps extends React.SVGProps<SVGSVGElement> {
   name: IconName;
@@ -461,8 +463,20 @@ export function Icon({ name, size = 20, className = "", ...props }: IconProps) {
           <path d="M16 14h.01M2 10V5a2 2 0 0 1 2-2h14" />
         </svg>
       );
+    case "schedule":
+      return (
+        <svg {...commonProps}>
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      );
+    case "hourglass_top":
+      return (
+        <svg {...commonProps}>
+          <path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+        </svg>
+      );
     default:
       return null;
   }
 }
-

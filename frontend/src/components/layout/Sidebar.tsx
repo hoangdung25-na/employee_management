@@ -56,6 +56,13 @@ const BACKOFFICE_NAV_ITEMS: NavItem[] = [
     badge: "P6",
     permission: null,
   },
+  {
+    label: "Kê khai Timesheet",
+    href: "/timesheets",
+    icon: "schedule",
+    badge: "P7",
+    permission: null,
+  },
 ];
 
 export function Sidebar() {
@@ -97,11 +104,10 @@ export function Sidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-[10px] text-[13px] leading-[20px] transition-all ${
-                    isActive
+                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-[10px] text-[13px] leading-[20px] transition-all ${isActive
                       ? "bg-[#EDE9FE] text-[#7C3AED] font-semibold border-l-[3px] border-[#7C3AED]"
                       : "text-[#4B5563] hover:bg-[#F5F3FF] hover:text-[#7C3AED]"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     <Icon
@@ -131,11 +137,10 @@ export function Sidebar() {
             </p>
             <Link
               href={`/employees/${session.employeeId}`}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-[10px] text-[13px] leading-[20px] transition-all ${
-                pathname === `/employees/${session.employeeId}`
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-[10px] text-[13px] leading-[20px] transition-all ${pathname === `/employees/${session.employeeId}`
                   ? "bg-[#EDE9FE] text-[#7C3AED] font-semibold border-l-[3px] border-[#7C3AED]"
                   : "text-[#4B5563] hover:bg-[#F5F3FF] hover:text-[#7C3AED]"
-              }`}
+                }`}
             >
               <div className="flex items-center gap-3">
                 <Icon
@@ -144,8 +149,7 @@ export function Sidebar() {
                   className={
                     pathname === `/employees/${session.employeeId}`
                       ? "text-[#7C3AED]"
-                      : "text-[#6B7280]"
-                  }
+                      : "text-[#6B7280]"}
                 />
                 <span>Hồ sơ của tôi</span>
               </div>
