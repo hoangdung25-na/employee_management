@@ -1,6 +1,8 @@
+using EmployeeManagement.Domain.Attendance.Entities;
 using EmployeeManagement.Domain.Common;
 using EmployeeManagement.Domain.Departments.Entities;
 using EmployeeManagement.Domain.Employees.Enums;
+using EmployeeManagement.Domain.Leaves.Entities;
 using EmployeeManagement.Domain.Positions.Entities;
 using EmployeeManagement.Domain.Users.Entities;
 
@@ -60,4 +62,10 @@ public class Employee : BaseEntity
     public ICollection<EmployeeContract> Contracts { get; set; } = new List<EmployeeContract>();
     public ICollection<EmployeeDecision> Decisions { get; set; } = new List<EmployeeDecision>();
     public ICollection<EmployeeOnboardingTask> OnboardingTasks { get; set; } = new List<EmployeeOnboardingTask>();
+
+    // Phase 6: Attendance & Leave Management
+    public ICollection<AttendanceLog> AttendanceLogs { get; set; } = new List<AttendanceLog>();
+    public ICollection<EmployeeShiftAssignment> ShiftAssignments { get; set; } = new List<EmployeeShiftAssignment>();
+    public ICollection<LeaveBalance> LeaveBalances { get; set; } = new List<LeaveBalance>();
+    public ICollection<LeaveRequest> LeaveRequests { get; set; } = new List<LeaveRequest>();
 }

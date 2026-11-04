@@ -42,6 +42,20 @@ const BACKOFFICE_NAV_ITEMS: NavItem[] = [
     badge: "SOP",
     permission: "Onboarding.Manage",
   },
+  {
+    label: "Chấm công & Ca làm",
+    href: "/attendance",
+    icon: "more_time",
+    badge: "P6",
+    permission: null,
+  },
+  {
+    label: "Nghỉ phép & Quỹ phép",
+    href: "/leaves",
+    icon: "history_edu",
+    badge: "P6",
+    permission: null,
+  },
 ];
 
 export function Sidebar() {

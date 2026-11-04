@@ -46,3 +46,4 @@ export interface CreateDecisionInput {
   attachmentUrl?: string;
   decisionNumber?: string;
 }
+

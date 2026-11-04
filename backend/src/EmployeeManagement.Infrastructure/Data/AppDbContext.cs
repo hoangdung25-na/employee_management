@@ -1,8 +1,10 @@
 using System.Reflection;
 using EmployeeManagement.Application.Interfaces;
+using EmployeeManagement.Domain.Attendance.Entities;
 using EmployeeManagement.Domain.Codes.Entities;
 using EmployeeManagement.Domain.Departments.Entities;
 using EmployeeManagement.Domain.Employees.Entities;
+using EmployeeManagement.Domain.Leaves.Entities;
 using EmployeeManagement.Domain.Positions.Entities;
 using EmployeeManagement.Domain.Users.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -32,6 +34,14 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<OnboardingTemplate> OnboardingTemplates => Set<OnboardingTemplate>();
     public DbSet<EmployeeOnboardingTask> EmployeeOnboardingTasks => Set<EmployeeOnboardingTask>();
 
+    // Phase 6: Attendance & Leave Management
+    public DbSet<WorkShift> WorkShifts => Set<WorkShift>();
+    public DbSet<EmployeeShiftAssignment> EmployeeShiftAssignments => Set<EmployeeShiftAssignment>();
+    public DbSet<AttendanceLog> AttendanceLogs => Set<AttendanceLog>();
+    public DbSet<LeaveType> LeaveTypes => Set<LeaveType>();
+    public DbSet<LeaveBalance> LeaveBalances => Set<LeaveBalance>();
+    public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -50,5 +60,13 @@ public class AppDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<EmployeeDecision>().HasQueryFilter(ed => !ed.IsDeleted);
         modelBuilder.Entity<OnboardingTemplate>().HasQueryFilter(ot => !ot.IsDeleted);
         modelBuilder.Entity<EmployeeOnboardingTask>().HasQueryFilter(eot => !eot.IsDeleted);
+
+        // Phase 6 Query Filters
+        modelBuilder.Entity<WorkShift>().HasQueryFilter(ws => !ws.IsDeleted);
+        modelBuilder.Entity<EmployeeShiftAssignment>().HasQueryFilter(esa => !esa.IsDeleted);
+        modelBuilder.Entity<AttendanceLog>().HasQueryFilter(al => !al.IsDeleted);
+        modelBuilder.Entity<LeaveType>().HasQueryFilter(lt => !lt.IsDeleted);
+        modelBuilder.Entity<LeaveBalance>().HasQueryFilter(lb => !lb.IsDeleted);
+        modelBuilder.Entity<LeaveRequest>().HasQueryFilter(lr => !lr.IsDeleted);
     }
 }

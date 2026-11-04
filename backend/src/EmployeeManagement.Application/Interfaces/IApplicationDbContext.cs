@@ -1,6 +1,8 @@
+using EmployeeManagement.Domain.Attendance.Entities;
 using EmployeeManagement.Domain.Codes.Entities;
 using EmployeeManagement.Domain.Departments.Entities;
 using EmployeeManagement.Domain.Employees.Entities;
+using EmployeeManagement.Domain.Leaves.Entities;
 using EmployeeManagement.Domain.Positions.Entities;
 using EmployeeManagement.Domain.Users.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +29,14 @@ public interface IApplicationDbContext
     DbSet<EmployeeDecision> EmployeeDecisions { get; }
     DbSet<OnboardingTemplate> OnboardingTemplates { get; }
     DbSet<EmployeeOnboardingTask> EmployeeOnboardingTasks { get; }
+
+    // Phase 6: Attendance & Leave Management
+    DbSet<WorkShift> WorkShifts { get; }
+    DbSet<EmployeeShiftAssignment> EmployeeShiftAssignments { get; }
+    DbSet<AttendanceLog> AttendanceLogs { get; }
+    DbSet<LeaveType> LeaveTypes { get; }
+    DbSet<LeaveBalance> LeaveBalances { get; }
+    DbSet<LeaveRequest> LeaveRequests { get; }
 
     DatabaseFacade Database { get; }
 
