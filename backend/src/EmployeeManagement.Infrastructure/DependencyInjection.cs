@@ -57,12 +57,18 @@ public static class DependencyInjection
             var envAccess = configuration["JWT_ACCESS_TOKEN_EXPIRATION_MINUTES"] ?? configuration["JwtSettings:AccessTokenExpirationMinutes"];
             if (int.TryParse(envAccess, out var accessMins)) options.AccessTokenExpirationMinutes = accessMins;
 
+            var envRefreshHours = configuration["JWT_REFRESH_TOKEN_EXPIRATION_HOURS"] ?? configuration["JwtSettings:RefreshTokenExpirationHours"];
+            if (int.TryParse(envRefreshHours, out var refreshHours)) options.RefreshTokenExpirationHours = refreshHours;
+
             var envRefresh = configuration["JWT_REFRESH_TOKEN_EXPIRATION_DAYS"] ?? configuration["JwtSettings:RefreshTokenExpirationDays"];
             if (int.TryParse(envRefresh, out var refreshDays)) options.RefreshTokenExpirationDays = refreshDays;
         });
+        services.AddMemoryCache();
         services.AddHttpContextAccessor();
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddSingleton<IAuthCache, MemoryAuthCache>();
+        services.AddScoped<IPermissionChecker, PermissionChecker>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
 
         return services;

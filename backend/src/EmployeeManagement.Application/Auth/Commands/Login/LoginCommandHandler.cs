@@ -18,15 +18,18 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, AuthResponseDto
     private readonly IApplicationDbContext _context;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
+    private readonly IAuthCache _authCache;
 
     public LoginCommandHandler(
         IApplicationDbContext context,
         IPasswordHasher passwordHasher,
-        IJwtTokenGenerator jwtTokenGenerator)
+        IJwtTokenGenerator jwtTokenGenerator,
+        IAuthCache authCache)
     {
         _context = context;
         _passwordHasher = passwordHasher;
         _jwtTokenGenerator = jwtTokenGenerator;
+        _authCache = authCache;
     }
 
     public async Task<AuthResponseDto> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -109,11 +112,11 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, AuthResponseDto
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var permissionCodes = roleData
-            .SelectMany(r => r.Permissions)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(p => p)
-            .ToList();
+        var permissionCodes = PermissionNames.ResolveEffectivePermissions(
+            user.CustomPermissions,
+            roleCodes,
+            roleData.SelectMany(r => r.Permissions),
+            user.Username);
 
         var fullName = user.Employee?.FullName ?? "Quản trị viên Hệ thống";
         var avatarUrl = user.Employee?.AvatarUrl;
@@ -123,10 +126,13 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, AuthResponseDto
         var refreshToken = _jwtTokenGenerator.GenerateRefreshToken();
 
         user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiryTime = nowUtc.AddDays(_jwtTokenGenerator.GetRefreshTokenExpirationDays());
+        user.RefreshTokenExpiryTime = nowUtc.AddHours(_jwtTokenGenerator.GetRefreshTokenExpirationHours());
         user.UpdatedAt = nowUtc;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        // 8. Warm up AuthCache immediately on login so subsequent requests require 0 DB queries
+        _authCache.SetUserAuth(user.Id, isActive: true, roleCodes, permissionCodes);
 
         return new AuthResponseDto(
             user.Id,

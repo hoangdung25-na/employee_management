@@ -14,15 +14,18 @@ public class ChangePasswordCommandHandler : IRequestHandler<ChangePasswordComman
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IAuthCache _authCache;
 
     public ChangePasswordCommandHandler(
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
-        IPasswordHasher passwordHasher)
+        IPasswordHasher passwordHasher,
+        IAuthCache authCache)
     {
         _context = context;
         _currentUserService = currentUserService;
         _passwordHasher = passwordHasher;
+        _authCache = authCache;
     }
 
     public async Task<bool> Handle(ChangePasswordCommand request, CancellationToken cancellationToken)
@@ -51,6 +54,7 @@ public class ChangePasswordCommandHandler : IRequestHandler<ChangePasswordComman
         user.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+        _authCache.InvalidateUser(user.Id);
         return true;
     }
 }

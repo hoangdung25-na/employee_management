@@ -32,6 +32,15 @@ try
 
     var app = builder.Build();
 
+    // Ensure CustomPermissions column exists on dbo.Users for per-user dynamic feature checkboxes
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<EmployeeManagement.Infrastructure.Data.AppDbContext>();
+        await Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(
+            db.Database,
+            "IF COL_LENGTH('dbo.Users', 'CustomPermissions') IS NULL ALTER TABLE dbo.Users ADD CustomPermissions VARCHAR(MAX) NULL;");
+    }
+
     // 3. Configure HTTP Request Pipeline & Security Middlewares
     app.UseMiddleware<ExceptionMiddleware>();
     app.UseMiddleware<SecurityHeadersMiddleware>();
@@ -50,6 +59,7 @@ try
     app.UseCors(EmployeeManagement.Api.DependencyInjection.NextJsCorsPolicyName);
     app.UseRateLimiter();
     app.UseHttpsRedirection();
+    app.UseMiddleware<CsrfProtectionMiddleware>();
     app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();

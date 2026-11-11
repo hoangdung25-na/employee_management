@@ -12,6 +12,7 @@ public class JwtSettings
     public string Issuer { get; set; } = "EmployeeManagementApi";
     public string Audience { get; set; } = "EmployeeManagementApp";
     public int AccessTokenExpirationMinutes { get; set; } = 15;
+    public int RefreshTokenExpirationHours { get; set; } = 3;
     public int RefreshTokenExpirationDays { get; set; } = 7;
 }
 

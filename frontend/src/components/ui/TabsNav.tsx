@@ -21,9 +21,9 @@ interface TabsNavProps {
 export function TabsNav({ tabs, activeTab, onChange, className = "" }: TabsNavProps) {
   return (
     <div
-      className={`bg-white rounded-[12px] border border-[#E5E7EB] shadow-xs px-4 pt-1 flex items-center overflow-x-auto no-scrollbar ${className}`}
+      className={`bg-white rounded-[12px] border border-[#E5E7EB] shadow-xs px-4 pt-1 flex items-center ${className}`}
     >
-      <div className="flex items-center gap-4 lg:gap-6 min-w-max">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -32,7 +32,7 @@ export function TabsNav({ tabs, activeTab, onChange, className = "" }: TabsNavPr
               type="button"
               disabled={tab.disabled}
               onClick={() => onChange(tab.id)}
-              className={`relative py-3 px-1 text-[14px] leading-[22px] font-medium flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+              className={`relative py-3 px-1 text-[13px] leading-[20px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed ${
                 isActive
                   ? "text-[#7C3AED] font-semibold"
                   : "text-[#6B7280] hover:text-[#111827]"
@@ -67,4 +67,3 @@ export function TabsNav({ tabs, activeTab, onChange, className = "" }: TabsNavPr
     </div>
   );
 }
-

@@ -14,13 +14,16 @@ public class GetCurrentUserQueryHandler : IRequestHandler<GetCurrentUserQuery, C
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IAuthCache _authCache;
 
     public GetCurrentUserQueryHandler(
         IApplicationDbContext context,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IAuthCache authCache)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _authCache = authCache;
     }
 
     public async Task<CurrentUserDto> Handle(GetCurrentUserQuery request, CancellationToken cancellationToken)
@@ -52,27 +55,22 @@ public class GetCurrentUserQueryHandler : IRequestHandler<GetCurrentUserQuery, C
 
         if (userProjection is null || !userProjection.IsActive)
         {
+            _authCache.InvalidateUser(userId);
             throw new UnauthorizedException("Tài khoản không tồn tại hoặc đã bị vô hiệu hóa.");
         }
 
-        var roleData = await _context.UserRoles
-            .AsNoTracking()
-            .Where(ur => ur.UserId == userId && ur.Role.IsActive)
-            .Select(ur => new
-            {
-                ur.Role.RoleCode,
-                Permissions = ur.Role.RolePermissions.Select(rp => rp.Permission.PermissionCode)
-            })
-            .ToListAsync(cancellationToken);
+        // Retrieve Roles & Permissions from AuthCache (loads from DB only on cache miss)
+        var cachedAuth = await _authCache.GetOrSetUserAuthAsync(userId, cancellationToken);
+        if (cachedAuth is null || !cachedAuth.IsActive)
+        {
+            throw new UnauthorizedException("Tài khoản không tồn tại hoặc đã bị vô hiệu hóa.");
+        }
 
-        var roleCodes = roleData
-            .Select(r => r.RoleCode)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+        var roleCodes = cachedAuth.Roles
+            .OrderBy(r => r)
             .ToList();
 
-        var permissionCodes = roleData
-            .SelectMany(r => r.Permissions)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+        var permissionCodes = cachedAuth.Permissions
             .OrderBy(p => p)
             .ToList();
 

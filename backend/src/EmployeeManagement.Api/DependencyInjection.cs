@@ -1,13 +1,13 @@
 using System.IdentityModel.Tokens.Jwt;
-using System.Reflection;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Threading.RateLimiting;
+using EmployeeManagement.Api.Authorization;
 using EmployeeManagement.Application.Common;
-using EmployeeManagement.Domain.Users.Consts;
 using EmployeeManagement.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -46,7 +46,7 @@ public static class DependencyInjection
                 }
 
                 policy.WithOrigins(allowedOrigins)
-                      .WithHeaders("Content-Type", "Authorization", "Accept", "X-Requested-With")
+                      .WithHeaders("Content-Type", "Authorization", "Accept", "X-Requested-With", "X-XSRF-TOKEN")
                       .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                       .AllowCredentials();
             });
@@ -134,6 +134,17 @@ public static class DependencyInjection
 
             options.Events = new JwtBearerEvents
             {
+                OnMessageReceived = context =>
+                {
+                    // If Authorization header is missing, extract JWT from "access_token" HttpOnly Cookie
+                    if (string.IsNullOrEmpty(context.Token) &&
+                        context.Request.Cookies.TryGetValue("access_token", out var cookieToken) &&
+                        !string.IsNullOrWhiteSpace(cookieToken))
+                    {
+                        context.Token = cookieToken;
+                    }
+                    return Task.CompletedTask;
+                },
                 OnChallenge = async context =>
                 {
                     context.HandleResponse();
@@ -170,25 +181,10 @@ public static class DependencyInjection
             };
         });
 
-        // 4. Register Atomic Permission Policies for 5-Role RBAC & ESS
-        services.AddAuthorization(options =>
-        {
-            var permissionConstants = typeof(UserConsts.Permissions)
-                .GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
-                .Where(fi => fi.IsLiteral && !fi.IsInitOnly && fi.FieldType == typeof(string))
-                .Select(fi => (string)fi.GetRawConstantValue()!)
-                .ToList();
-
-            foreach (var permission in permissionConstants)
-            {
-                options.AddPolicy(permission, policy =>
-                    policy.RequireAssertion(ctx =>
-                        ctx.User.HasClaim(c =>
-                            c.Type == JwtTokenGenerator.PermissionClaimType &&
-                            string.Equals(c.Value, permission, StringComparison.OrdinalIgnoreCase)) ||
-                        ctx.User.IsInRole(UserConsts.Roles.SuperAdmin)));
-            }
-        });
+        // 4. Register Dynamic Permission Policy Provider & PermissionChecker Authorization Handler (Phase 3 AuthCache)
+        services.AddAuthorization();
+        services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+        services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
         services.AddControllers();
         services.AddEndpointsApiExplorer();

@@ -21,6 +21,8 @@ public interface IJwtTokenGenerator
 
     string GenerateRefreshToken();
 
+    int GetRefreshTokenExpirationHours();
+
     int GetRefreshTokenExpirationDays();
 
     ClaimsPrincipal? GetPrincipalFromExpiredToken(string token);

@@ -85,6 +85,11 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         return Guid.NewGuid().ToString();
     }
 
+    public int GetRefreshTokenExpirationHours()
+    {
+        return _jwtSettings.RefreshTokenExpirationHours;
+    }
+
     public int GetRefreshTokenExpirationDays()
     {
         return _jwtSettings.RefreshTokenExpirationDays;

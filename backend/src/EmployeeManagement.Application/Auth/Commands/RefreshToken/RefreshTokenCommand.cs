@@ -8,8 +8,8 @@ namespace EmployeeManagement.Application.Auth.Commands.RefreshToken;
 /// CQRS Command for issuing a new Access Token & Refresh Token pair from an expired Access Token.
 /// </summary>
 public record RefreshTokenCommand(
-    [property: JsonIgnore] string AccessToken,
-    [property: JsonIgnore] string RefreshToken
+    string AccessToken = "",
+    string RefreshToken = ""
 ) : IRequest<AuthResponseDto>
 {
     public override string ToString() =>

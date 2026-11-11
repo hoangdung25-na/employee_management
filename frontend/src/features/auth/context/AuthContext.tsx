@@ -7,16 +7,22 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import { AUTH_STORAGE_KEY } from "@/lib/api/client";
+import {
+  AUTH_LOGOUT_EVENT,
+  AUTH_UPDATED_EVENT,
+  getStoredSession,
+  setStoredSession,
+  logoutApi,
+} from "@/lib/api/client";
 import { AuthSession, LoginPayload } from "@/features/auth/types/auth";
-import { loginApi } from "@/features/auth/services/authService";
+import { loginApi, getCurrentUserApi } from "@/features/auth/services/authService";
 
 interface AuthContextValue {
   session: AuthSession | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (payload: LoginPayload) => Promise<AuthSession>;
-  logout: () => void;
+  logout: () => Promise<void>;
   hasRole: (roleCode: string) => boolean;
   hasPermission: (permissionCode: string) => boolean;
 }
@@ -28,30 +34,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as AuthSession;
-        if (parsed && parsed.accessToken) {
-          setSession(parsed);
+    let isMounted = true;
+
+    async function initSession() {
+      try {
+        // Clear any legacy localStorage items if present
+        getStoredSession();
+
+        // Hydrate user profile/roles/permissions into RAM directly from Backend
+        // using the browser's HttpOnly Session Cookie (access_token / refresh_token)
+        const currentProfile = await getCurrentUserApi();
+        if (isMounted && currentProfile?.userId) {
+          const ramSession: AuthSession = {
+            userId: currentProfile.userId,
+            employeeId: currentProfile.employeeId,
+            username: currentProfile.username,
+            email: currentProfile.email,
+            fullName: currentProfile.fullName,
+            avatarUrl: currentProfile.avatarUrl,
+            mustChangePassword: currentProfile.mustChangePassword,
+            roles: currentProfile.roles,
+            permissions: currentProfile.permissions,
+          };
+          setStoredSession(ramSession);
+          setSession(ramSession);
+        } else if (isMounted) {
+          setStoredSession(null);
+          setSession(null);
+        }
+      } catch {
+        // Cookie expired (>3 hours or browser closed) or not logged in -> clear RAM state
+        if (isMounted) {
+          setStoredSession(null);
+          setSession(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
         }
       }
-    } catch {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    } finally {
-      setIsLoading(false);
     }
+
+    initSession();
+
+    const handleAuthUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<AuthSession>;
+      if (customEvent.detail) {
+        setSession(customEvent.detail);
+      }
+    };
+
+    const handleAuthLogout = () => {
+      setSession(null);
+    };
+
+    window.addEventListener(AUTH_UPDATED_EVENT, handleAuthUpdated);
+    window.addEventListener(AUTH_LOGOUT_EVENT, handleAuthLogout);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener(AUTH_UPDATED_EVENT, handleAuthUpdated);
+      window.removeEventListener(AUTH_LOGOUT_EVENT, handleAuthLogout);
+    };
   }, []);
 
   const login = useCallback(async (payload: LoginPayload) => {
     const result = await loginApi(payload);
-    window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(result));
+    setStoredSession(result);
     setSession(result);
     return result;
   }, []);
 
-  const logout = useCallback(() => {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  const logout = useCallback(async () => {
+    await logoutApi();
     setSession(null);
   }, []);
 
@@ -67,16 +122,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const hasPermission = useCallback(
     (permissionCode: string) => {
-      if (!session) return true; // Cho phép trải nghiệm ở chế độ Demo nếu chưa đăng nhập
+      if (!session) return false;
       if (
-        session.roles.some((r) => r.toUpperCase() === "SUPER_ADMIN") ||
-        session.permissions.some(
-          (p) => p.toLowerCase() === permissionCode.toLowerCase()
-        )
+        session.permissions &&
+        session.permissions.length > 0
       ) {
-        return true;
+        return session.permissions.some(
+          (p) => p.toLowerCase() === permissionCode.toLowerCase()
+        );
       }
-      return false;
+      return session.roles.some((r) => r.toUpperCase() === "SUPER_ADMIN");
     },
     [session]
   );
@@ -85,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         session,
-        isAuthenticated: Boolean(session?.accessToken),
+        isAuthenticated: Boolean(session?.userId),
         isLoading,
         login,
         logout,
@@ -105,4 +160,3 @@ export function useAuth(): AuthContextValue {
   }
   return ctx;
 }
-

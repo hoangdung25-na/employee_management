@@ -5,8 +5,10 @@ using EmployeeManagement.Domain.Codes.Entities;
 using EmployeeManagement.Domain.Departments.Entities;
 using EmployeeManagement.Domain.Employees.Entities;
 using EmployeeManagement.Domain.Leaves.Entities;
+using EmployeeManagement.Domain.Performance.Entities;
 using EmployeeManagement.Domain.Positions.Entities;
 using EmployeeManagement.Domain.Timesheets.Entities;
+using EmployeeManagement.Domain.Training.Entities;
 using EmployeeManagement.Domain.Users.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,12 +25,14 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<Position> Positions => Set<Position>();
+    public DbSet<DepartmentPosition> DepartmentPositions => Set<DepartmentPosition>();
     public DbSet<CodeSequence> CodeSequences => Set<CodeSequence>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<LoginAuditLog> LoginAuditLogs => Set<LoginAuditLog>();
     public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
     public DbSet<EmployeeContract> EmployeeContracts => Set<EmployeeContract>();
     public DbSet<EmployeeDecision> EmployeeDecisions => Set<EmployeeDecision>();
@@ -45,6 +49,13 @@ public class AppDbContext : DbContext, IApplicationDbContext
 
     // Phase 7: Timesheet Management
     public DbSet<TimesheetEntry> TimesheetEntries => Set<TimesheetEntry>();
+
+    // Phase 8: Performance & Training LMS
+    public DbSet<ReviewCycle> ReviewCycles => Set<ReviewCycle>();
+    public DbSet<PerformanceReview> PerformanceReviews => Set<PerformanceReview>();
+    public DbSet<PerformanceGoal> PerformanceGoals => Set<PerformanceGoal>();
+    public DbSet<TrainingCourse> TrainingCourses => Set<TrainingCourse>();
+    public DbSet<EmployeeTraining> EmployeeTrainings => Set<EmployeeTraining>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -75,5 +86,12 @@ public class AppDbContext : DbContext, IApplicationDbContext
 
         // Phase 7 Query Filters
         modelBuilder.Entity<TimesheetEntry>().HasQueryFilter(t => !t.IsDeleted);
+
+        // Phase 8 Query Filters
+        modelBuilder.Entity<ReviewCycle>().HasQueryFilter(rc => !rc.IsDeleted);
+        modelBuilder.Entity<PerformanceReview>().HasQueryFilter(pr => !pr.IsDeleted);
+        modelBuilder.Entity<PerformanceGoal>().HasQueryFilter(pg => !pg.IsDeleted);
+        modelBuilder.Entity<TrainingCourse>().HasQueryFilter(tc => !tc.IsDeleted);
+        modelBuilder.Entity<EmployeeTraining>().HasQueryFilter(et => !et.IsDeleted);
     }
 }

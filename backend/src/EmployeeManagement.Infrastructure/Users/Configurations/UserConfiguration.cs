@@ -59,6 +59,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasDefaultValue(false)
             .IsRequired();
 
+        builder.Property(u => u.CustomPermissions)
+            .IsUnicode(false);
+
         // Unique constraints
         builder.HasIndex(u => u.Username).IsUnique();
         builder.HasIndex(u => u.Email).IsUnique();

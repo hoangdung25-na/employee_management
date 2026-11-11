@@ -25,9 +25,8 @@ const robotoMono = Roboto_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HRFlow — Enterprise Employee Management System",
-  description:
-    "Hybrid Back-Office HRM & Employee Self-Service Platform",
+  title: "HRFlow — Hệ thống Quản trị Nhân sự",
+  description: "Hệ thống Quản trị Nhân sự toàn diện",
 };
 
 export default function RootLayout({
@@ -41,12 +40,12 @@ export default function RootLayout({
       className={`${lexend.variable} ${dmSans.variable} ${robotoMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-        <body
-          className="min-h-full flex flex-col bg-[#FAFAFA] text-[#111827] font-sans"
-          suppressHydrationWarning
-        >
-          <AuthProvider>{children}</AuthProvider>
-        </body>
+      <body
+        className="min-h-full flex flex-col bg-[#FAFAFA] text-[#111827] font-sans"
+        suppressHydrationWarning
+      >
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

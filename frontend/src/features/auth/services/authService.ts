@@ -11,12 +11,12 @@ export async function loginApi(payload: LoginPayload): Promise<AuthSession> {
 }
 
 export async function refreshTokenApi(
-  accessToken: string,
-  refreshToken: string
+  accessToken?: string,
+  refreshToken?: string
 ): Promise<AuthSession> {
   return apiPost<AuthSession>("/auth/refresh-token", {
-    accessToken,
-    refreshToken,
+    accessToken: accessToken || "",
+    refreshToken: refreshToken || "",
   });
 }
 

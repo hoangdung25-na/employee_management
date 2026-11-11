@@ -2,6 +2,7 @@ using System.Security.Claims;
 using EmployeeManagement.Application.Auth.DTOs;
 using EmployeeManagement.Application.Common.Exceptions;
 using EmployeeManagement.Application.Interfaces;
+using EmployeeManagement.Domain.Users.Consts;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,17 +14,20 @@ namespace EmployeeManagement.Application.Auth.Commands.RefreshToken;
 /// </summary>
 public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, AuthResponseDto>
 {
-    private const string InvalidRefreshTokenMessage = "Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.";
+    private const string InvalidRefreshTokenMessage = "Phiên làm việc đã hết hạn do quá 3 tiếng không hoạt động hoặc không hợp lệ. Vui lòng đăng nhập lại.";
 
     private readonly IApplicationDbContext _context;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
+    private readonly IAuthCache _authCache;
 
     public RefreshTokenCommandHandler(
         IApplicationDbContext context,
-        IJwtTokenGenerator jwtTokenGenerator)
+        IJwtTokenGenerator jwtTokenGenerator,
+        IAuthCache authCache)
     {
         _context = context;
         _jwtTokenGenerator = jwtTokenGenerator;
+        _authCache = authCache;
     }
 
     public async Task<AuthResponseDto> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
@@ -76,11 +80,11 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var permissionCodes = roleData
-            .SelectMany(r => r.Permissions)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(p => p)
-            .ToList();
+        var permissionCodes = PermissionNames.ResolveEffectivePermissions(
+            user.CustomPermissions,
+            roleCodes,
+            roleData.SelectMany(r => r.Permissions),
+            user.Username);
 
         var fullName = user.Employee?.FullName ?? "Quản trị viên Hệ thống";
         var avatarUrl = user.Employee?.AvatarUrl;
@@ -89,10 +93,13 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
         var newRefreshToken = _jwtTokenGenerator.GenerateRefreshToken();
 
         user.RefreshToken = newRefreshToken;
-        user.RefreshTokenExpiryTime = nowUtc.AddDays(_jwtTokenGenerator.GetRefreshTokenExpirationDays());
+        user.RefreshTokenExpiryTime = nowUtc.AddHours(_jwtTokenGenerator.GetRefreshTokenExpirationHours());
         user.UpdatedAt = nowUtc;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Synchronize AuthCache with the newly refreshed session and permissions
+        _authCache.SetUserAuth(user.Id, isActive: true, roleCodes, permissionCodes);
 
         return new AuthResponseDto(
             user.Id,

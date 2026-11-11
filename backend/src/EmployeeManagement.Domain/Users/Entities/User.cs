@@ -29,6 +29,10 @@ public class User : BaseEntity
     public DateTime? RefreshTokenExpiryTime { get; set; }
     public bool MustChangePassword { get; set; } = false;
 
+    // Optional comma-separated list of custom atomic PermissionCodes assigned specifically to this User.
+    // When NULL, the user inherits default RolePermissions from their assigned Roles.
+    public string? CustomPermissions { get; set; }
+
     // Assigned Roles (N-N via UserRoles)
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 }

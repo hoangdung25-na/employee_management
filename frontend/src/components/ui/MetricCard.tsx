@@ -28,7 +28,7 @@ export function MetricCard({
 }: MetricCardProps) {
   return (
     <div
-      className={`bg-white rounded-[12px] border border-[#E5E7EB] shadow-xs p-5 flex flex-col justify-between transition-all hover:shadow-sm ${className}`}
+      className={`bg-white rounded-[12px] border border-[#E5E7EB] shadow-xs p-5 flex flex-col justify-between overflow-hidden transition-all hover:shadow-sm ${className}`}
     >
       <div className="flex items-center justify-between gap-3">
         <span className="text-[13px] leading-[18px] font-medium text-[#6B7280]">
@@ -43,16 +43,16 @@ export function MetricCard({
         )}
       </div>
 
-      <div className="mt-3">
-        <span className="font-heading text-[26px] leading-[32px] font-bold text-[#111827] tracking-tight">
+      <div className="mt-3 min-w-0">
+        <span className="font-heading text-[24px] leading-[32px] font-bold text-[#111827] tracking-tight block truncate">
           {value}
         </span>
       </div>
 
       {(trend || subtitle) && (
-        <div className="mt-3 pt-3 border-t border-[#F3F4F6] flex items-center justify-between text-[12px] leading-[16px]">
+        <div className="mt-3 pt-3 border-t border-[#F3F4F6] flex flex-wrap items-center justify-between gap-2 text-[12px] leading-[16px]">
           {trend ? (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
               <span
                 className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-semibold font-mono ${
                   trend.isPositive !== false
@@ -71,7 +71,7 @@ export function MetricCard({
           )}
 
           {subtitle && (
-            <span className="text-[#9CA3AF] text-right font-medium">
+            <span className="text-[#9CA3AF] font-medium">
               {subtitle}
             </span>
           )}
@@ -80,4 +80,3 @@ export function MetricCard({
     </div>
   );
 }
-

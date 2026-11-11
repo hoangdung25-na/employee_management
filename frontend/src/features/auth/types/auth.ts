@@ -1,9 +1,8 @@
-export type SystemRoleCode =
-  | "SUPER_ADMIN"
-  | "HR_MANAGER"
-  | "HR_STAFF"
-  | "MANAGER"
-  | "EMPLOYEE";
+export * from "./roles";
+export * from "./permissions";
+
+import type { SystemRoleCode } from "./roles";
+import type { PermissionCode } from "./permissions";
 
 export interface AuthSession {
   userId: string;
@@ -13,11 +12,12 @@ export interface AuthSession {
   fullName: string;
   avatarUrl?: string | null;
   mustChangePassword: boolean;
-  roles: string[];
-  permissions: string[];
-  accessToken: string;
-  refreshToken: string;
-  accessTokenExpiresAt: string;
+  roles: (SystemRoleCode | string)[];
+  permissions: (PermissionCode | string)[];
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAtUtc?: string;
+  accessTokenExpiresAt?: string;
 }
 
 export interface CurrentUserProfile {
@@ -30,8 +30,8 @@ export interface CurrentUserProfile {
   positionName?: string | null;
   avatarUrl?: string | null;
   mustChangePassword: boolean;
-  roles: string[];
-  permissions: string[];
+  roles: (SystemRoleCode | string)[];
+  permissions: (PermissionCode | string)[];
 }
 
 export interface LoginPayload {
@@ -44,4 +44,3 @@ export interface ChangePasswordPayload {
   newPassword: string;
   confirmPassword: string;
 }
-
