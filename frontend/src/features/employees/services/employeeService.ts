@@ -163,3 +163,19 @@ export async function deleteDecision(
   return apiDelete<boolean>(`/decisions/${id}`);
 }
 
+/**
+ * Lấy danh sách quản lý hợp lệ theo phòng ban và cấp bậc (`GET /api/employees/managers`).
+ */
+export async function getDepartmentManagers(
+  departmentId?: string,
+  excludeEmployeeId?: string
+): Promise<import("@/features/employees/types/employee").ManagerOption[]> {
+  return apiGet<import("@/features/employees/types/employee").ManagerOption[]>(
+    "/employees/managers",
+    {
+      departmentId: departmentId || undefined,
+      excludeEmployeeId: excludeEmployeeId || undefined,
+    }
+  );
+}
+

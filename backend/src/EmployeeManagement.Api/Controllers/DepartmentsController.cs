@@ -1,3 +1,4 @@
+using EmployeeManagement.Api.Authorization;
 using EmployeeManagement.Application.Common;
 using EmployeeManagement.Application.Departments.Commands.CreateDepartment;
 using EmployeeManagement.Application.Departments.Commands.DeleteDepartment;
@@ -33,7 +34,7 @@ public class DepartmentsController : ControllerBase
     /// Retrieves all departments with manager name and active headcount.
     /// </summary>
     [HttpGet]
-    [Authorize(Policy = UserConsts.Permissions.DepartmentView)]
+    [RequirePermission(PermissionNames.Departments.View)]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<DepartmentResponseDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetDepartments(
         [FromQuery] GetDepartmentsQuery query,
@@ -47,7 +48,7 @@ public class DepartmentsController : ControllerBase
     /// Retrieves detailed information of a specific department by GUID, including affiliated members.
     /// </summary>
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = UserConsts.Permissions.DepartmentView)]
+    [RequirePermission(PermissionNames.Departments.View)]
     [ProducesResponseType(typeof(ApiResponse<DepartmentDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetDepartmentById(Guid id, CancellationToken cancellationToken)
@@ -60,7 +61,7 @@ public class DepartmentsController : ControllerBase
     /// Creates a new department.
     /// </summary>
     [HttpPost]
-    [Authorize(Policy = UserConsts.Permissions.DepartmentCreate)]
+    [RequirePermission(PermissionNames.Departments.Create)]
     [ProducesResponseType(typeof(ApiResponse<DepartmentResponseDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
@@ -78,7 +79,7 @@ public class DepartmentsController : ControllerBase
     /// Updates an existing department by GUID.
     /// </summary>
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = UserConsts.Permissions.DepartmentUpdate)]
+    [RequirePermission(PermissionNames.Departments.Update)]
     [ProducesResponseType(typeof(ApiResponse<DepartmentResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -103,7 +104,7 @@ public class DepartmentsController : ControllerBase
     /// Soft-deletes a department by GUID (only if it has no affiliated employees and no child departments).
     /// </summary>
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = UserConsts.Permissions.DepartmentDelete)]
+    [RequirePermission(PermissionNames.Departments.Delete)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]

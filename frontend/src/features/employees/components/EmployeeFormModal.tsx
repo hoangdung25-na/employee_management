@@ -4,13 +4,13 @@ import React, { useEffect, useState } from "react";
 import {
   CreateEmployeePayload,
   EmployeeDetail,
-  EmployeeSummary,
+  ManagerOption,
   UpdateEmployeePayload,
 } from "@/features/employees/types/employee";
 import {
   createEmployee,
+  getDepartmentManagers,
   getEmployeeById,
-  getEmployees,
   updateEmployee,
 } from "@/features/employees/services/employeeService";
 import {
@@ -41,8 +41,10 @@ export function EmployeeFormModal({
 }: EmployeeFormModalProps) {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [positions, setPositions] = useState<PositionItem[]>([]);
-  const [managers, setManagers] = useState<EmployeeSummary[]>([]);
+  const [managers, setManagers] = useState<ManagerOption[]>([]);
   const [isLoadingMeta, setIsLoadingMeta] = useState<boolean>(false);
+  const [isLoadingPositions, setIsLoadingPositions] = useState<boolean>(false);
+  const [isLoadingManagers, setIsLoadingManagers] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -50,7 +52,7 @@ export function EmployeeFormModal({
   const [employeeCodeDisplay, setEmployeeCodeDisplay] = useState<string>("");
   const [fullName, setFullName] = useState<string>("");
   const [dateOfBirth, setDateOfBirth] = useState<string>("1998-05-15");
-  const [gender, setGender] = useState<string>("Male");
+  const [gender, setGender] = useState<string>("Nam");
   const [citizenId, setCitizenId] = useState<string>("");
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [workEmail, setWorkEmail] = useState<string>("");
@@ -71,6 +73,10 @@ export function EmployeeFormModal({
   const [bankAccountNumber, setBankAccountNumber] = useState<string>("");
   const [bankName, setBankName] = useState<string>("");
 
+  const targetEmployeeId = initialDetail?.id ?? employeeId ?? undefined;
+  const isExecutive = positions.find((p) => p.id === positionId)?.jobLevel === 1;
+  const isDeptHead = departments.find((d) => d.id === departmentId)?.managerId === targetEmployeeId;
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -80,16 +86,10 @@ export function EmployeeFormModal({
 
     async function loadFormContext() {
       try {
-        const [deptList, posList, empPaged] = await Promise.all([
-          getDepartments({ includeInactive: false }),
-          getPositions(false),
-          getEmployees({ pageNumber: 1, pageSize: 100 }),
-        ]);
+        const deptList = await getDepartments({ includeInactive: false });
 
         if (!isMounted) return;
         setDepartments(deptList);
-        setPositions(posList);
-        setManagers(empPaged.items ?? []);
 
         if (mode === "edit" && (initialDetail || employeeId)) {
           const detail =
@@ -99,7 +99,15 @@ export function EmployeeFormModal({
           setEmployeeCodeDisplay(detail.employeeCode);
           setFullName(detail.fullName);
           setDateOfBirth(detail.dateOfBirth);
-          setGender(detail.gender);
+          setGender(
+            detail.gender === "Male"
+              ? "Nam"
+              : detail.gender === "Female"
+              ? "Nữ"
+              : detail.gender === "Other"
+              ? "Khác"
+              : detail.gender || "Nam"
+          );
           setCitizenId(detail.citizenId || "");
           setPhoneNumber(detail.phoneNumber || "");
           setWorkEmail(detail.workEmail);
@@ -107,7 +115,6 @@ export function EmployeeFormModal({
           setAddress(detail.address || "");
           setDepartmentId(detail.departmentId);
           setPositionId(detail.positionId);
-          setDirectManagerId(detail.directManagerId || "");
           setHireDate(detail.hireDate);
           setProbationEndDate(detail.probationEndDate || "");
           setStatus(detail.status);
@@ -116,20 +123,75 @@ export function EmployeeFormModal({
           setSocialInsuranceNumber(detail.socialInsuranceNumber || "");
           setBankAccountNumber(detail.bankAccountNumber || "");
           setBankName(detail.bankName || "");
+
+          // Load positions and eligible managers for this specific department
+          let posList: PositionItem[] = [];
+          let mgrList: ManagerOption[] = [];
+          if (detail.departmentId) {
+            [posList, mgrList] = await Promise.all([
+              getPositions(false, detail.departmentId),
+              getDepartmentManagers(detail.departmentId, detail.id),
+            ]);
+          }
+
+          if (!isMounted) return;
+          setPositions(posList);
+          setManagers(mgrList);
+
+          const currentPos = posList.find((p) => p.id === detail.positionId);
+          const isCurrentDeptHead =
+            detail.departmentId &&
+            deptList.find((d) => d.id === detail.departmentId)?.managerId === detail.id;
+
+          if (currentPos && currentPos.jobLevel === 1) {
+            setDirectManagerId("");
+          } else if (isCurrentDeptHead) {
+            // Trưởng phòng mặc định báo cáo trực tiếp cho Giám đốc cấp cao nhất (BOD)
+            const bodManager = mgrList.find((m) => m.jobLevel === 1);
+            setDirectManagerId(detail.directManagerId || (bodManager ? bodManager.id : ""));
+          } else {
+            setDirectManagerId(detail.directManagerId || "");
+          }
         } else {
           // Reset for Create mode
+          const defaultDept = deptList[0];
+          const defaultDeptId = defaultDept ? defaultDept.id : "";
+
+          let posList: PositionItem[] = [];
+          let mgrList: ManagerOption[] = [];
+          if (defaultDeptId) {
+            [posList, mgrList] = await Promise.all([
+              getPositions(false, defaultDeptId),
+              getDepartmentManagers(defaultDeptId),
+            ]);
+          }
+
+          if (!isMounted) return;
+          setPositions(posList);
+          setManagers(mgrList);
+
           setEmployeeCodeDisplay("Tự động cấp (EMP-xxxxx)");
           setFullName("");
           setDateOfBirth("1998-05-15");
-          setGender("Male");
+          setGender("Nam");
           setCitizenId("");
           setPhoneNumber("");
           setWorkEmail("");
           setPersonalEmail("");
           setAddress("");
-          setDepartmentId(deptList[0]?.id ?? "");
-          setPositionId(posList[0]?.id ?? "");
-          setDirectManagerId("");
+          setDepartmentId(defaultDeptId);
+
+          const defaultPos = posList[0];
+          const defaultPosId = defaultPos ? defaultPos.id : "";
+          setPositionId(defaultPosId);
+
+          if (defaultPos && defaultPos.jobLevel === 1) {
+            setDirectManagerId("");
+          } else {
+            const head = mgrList.find((m) => m.isDepartmentHead);
+            setDirectManagerId(head ? head.id : "");
+          }
+
           const today = new Date().toISOString().slice(0, 10);
           setHireDate(today);
           setProbationEndDate("");
@@ -160,6 +222,68 @@ export function EmployeeFormModal({
     };
   }, [isOpen, mode, employeeId, initialDetail]);
 
+  const handleDepartmentChange = async (newDeptId: string) => {
+    setDepartmentId(newDeptId);
+    if (!newDeptId) {
+      setPositions([]);
+      setPositionId("");
+      setManagers([]);
+      setDirectManagerId("");
+      return;
+    }
+
+    try {
+      setIsLoadingPositions(true);
+      setIsLoadingManagers(true);
+
+      const [posList, mgrList] = await Promise.all([
+        getPositions(false, newDeptId),
+        getDepartmentManagers(newDeptId, targetEmployeeId),
+      ]);
+
+      setPositions(posList);
+      setManagers(mgrList);
+
+      // Check whether current selected position is mapped to this department
+      const stillValidPos = posList.find((p) => p.id === positionId);
+      const nextPos = stillValidPos || posList[0];
+      const nextPosId = nextPos ? nextPos.id : "";
+      setPositionId(nextPosId);
+
+      // If next position is Executive (JobLevel == 1), auto-lock manager
+      const isNowDeptHead = departments.find((d) => d.id === newDeptId)?.managerId === targetEmployeeId;
+      if (nextPos && nextPos.jobLevel === 1) {
+        setDirectManagerId("");
+      } else if (isNowDeptHead) {
+        // Trưởng phòng mặc định báo cáo trực tiếp cho Giám đốc cấp cao nhất (BOD)
+        const bodManager = mgrList.find((m) => m.jobLevel === 1);
+        setDirectManagerId(bodManager ? bodManager.id : "");
+      } else {
+        const stillValidMgr = mgrList.find((m) => m.id === directManagerId);
+        if (stillValidMgr) {
+          // Keep current manager
+        } else {
+          // Default to department head if present, else empty
+          const deptHead = mgrList.find((m) => m.isDepartmentHead);
+          setDirectManagerId(deptHead ? deptHead.id : "");
+        }
+      }
+    } catch (err) {
+      console.error("Lỗi cập nhật chức vụ & quản lý theo phòng ban:", err);
+    } finally {
+      setIsLoadingPositions(false);
+      setIsLoadingManagers(false);
+    }
+  };
+
+  const handlePositionChange = (newPosId: string) => {
+    setPositionId(newPosId);
+    const pos = positions.find((p) => p.id === newPosId);
+    if (pos && pos.jobLevel === 1) {
+      setDirectManagerId("");
+    }
+  };
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -186,7 +310,7 @@ export function EmployeeFormModal({
           hireDate,
           departmentId,
           positionId,
-          directManagerId: directManagerId || null,
+          directManagerId: isExecutive ? null : directManagerId || null,
           baseSalary: numericSalary,
           status,
           probationEndDate: probationEndDate || null,
@@ -200,7 +324,7 @@ export function EmployeeFormModal({
       } else {
         const targetId = initialDetail?.id ?? employeeId;
         if (!targetId) {
-          throw new Error("Thiếu định danh GUID của thành viên cần cập nhật.");
+          throw new Error("Thiếu mã nhân viên cần cập nhật.");
         }
         const payload: UpdateEmployeePayload = {
           fullName: fullName.trim(),
@@ -211,7 +335,7 @@ export function EmployeeFormModal({
           address: address.trim() || null,
           departmentId,
           positionId,
-          directManagerId: directManagerId || null,
+          directManagerId: isExecutive ? null : directManagerId || null,
           baseSalary: numericSalary,
           avatarUrl: initialDetail?.avatarUrl ?? null,
           status,
@@ -230,7 +354,7 @@ export function EmployeeFormModal({
       setErrorMessage(
         err instanceof Error
           ? err.message
-          : "Đã xảy ra lỗi khi lưu hồ sơ thành viên."
+          : "Đã xảy ra lỗi khi lưu hồ sơ nhân sự."
       );
     } finally {
       setIsSubmitting(false);
@@ -241,15 +365,15 @@ export function EmployeeFormModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto">
       <div className="bg-white border border-[#E5E7EB] rounded-[12px] shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden my-auto">
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-[#E5E7EB] bg-[#FAFAFA] flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-[#E5E7EB] bg-[#FAFAFA] flex items-center justify-between shrink-0">
           <div>
             <h2 className="font-heading text-[20px] leading-[28px] font-semibold text-[#111827]">
               {mode === "create"
-                ? "Tiếp nhận Thành viên Đội ngũ mới"
-                : "Chỉnh sửa Hồ sơ Thành viên"}
+                ? "Thêm nhân viên mới"
+                : "Chỉnh sửa hồ sơ nhân sự"}
             </h2>
             <p className="text-[12px] leading-[18px] text-[#6B7280] mt-0.5">
-              Mã nghiệp vụ:{" "}
+              Mã nhân viên:{" "}
               <span className="font-mono font-medium text-[#7C3AED]">
                 {employeeCodeDisplay || "EMP-xxxxx"}
               </span>
@@ -258,7 +382,7 @@ export function EmployeeFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="h-8 px-3 rounded-[6px] text-[13px] font-medium text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#111827] transition-colors cursor-pointer"
+            className="h-8 px-3 rounded-[6px] text-[13px] font-medium text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#111827] transition-colors cursor-pointer shrink-0"
           >
             Đóng ✕
           </button>
@@ -266,7 +390,7 @@ export function EmployeeFormModal({
 
         {/* Modal Body */}
         {isLoadingMeta ? (
-          <div className="p-8 space-y-4">
+          <div className="p-8 space-y-4 flex-1 overflow-y-auto">
             <div className="h-5 w-48 bg-[#E5E7EB] rounded animate-pulse" />
             <div className="grid grid-cols-2 gap-4">
               <div className="h-10 bg-[#F3F4F6] rounded-[8px] animate-pulse" />
@@ -279,7 +403,7 @@ export function EmployeeFormModal({
           <form
             id="employeeFormModal"
             onSubmit={handleSubmit}
-            className="p-6 overflow-y-auto space-y-6 text-[14px]"
+            className="p-6 flex-1 overflow-y-auto space-y-6 text-[14px]"
           >
             {errorMessage && (
               <div className="p-3.5 rounded-[8px] bg-[#FEF2F2] border border-[#EF4444] text-[#EF4444] text-[13px]">
@@ -288,12 +412,12 @@ export function EmployeeFormModal({
               </div>
             )}
 
-            {/* Section 1: Thông tin cá nhân & định danh */}
+            {/* Section 1: Thông tin cá nhân & Liên hệ */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 border-b border-[#E5E7EB] pb-2">
                 <span className="w-2 h-2 rounded-full bg-[#7C3AED]" />
                 <h3 className="font-heading text-[15px] font-semibold text-[#111827]">
-                  1. Định danh Cá nhân & Liên hệ
+                  1. Thông tin cá nhân & Liên hệ
                 </h3>
               </div>
 
@@ -350,9 +474,9 @@ export function EmployeeFormModal({
                     onChange={(e) => setGender(e.target.value)}
                     className="w-full h-10 px-3 rounded-[8px] border border-[#E5E7EB] bg-white text-[#111827] hover:border-[#A78BFA] focus:outline-none focus:border-[#7C3AED]"
                   >
-                    <option value="Male">Nam (Male)</option>
-                    <option value="Female">Nữ (Female)</option>
-                    <option value="Other">Khác (Other)</option>
+                    <option value="Nam">Nam</option>
+                    <option value="Nữ">Nữ</option>
+                    <option value="Khác">Khác</option>
                   </select>
                 </div>
 
@@ -421,7 +545,7 @@ export function EmployeeFormModal({
               <div className="flex items-center gap-2 border-b border-[#E5E7EB] pb-2">
                 <span className="w-2 h-2 rounded-full bg-[#0D9488]" />
                 <h3 className="font-heading text-[15px] font-semibold text-[#111827]">
-                  2. Phòng ban, Chức vụ & Lộ trình Công việc
+                  2. Phòng ban, Chức vụ & Công việc
                 </h3>
               </div>
 
@@ -433,7 +557,7 @@ export function EmployeeFormModal({
                   <select
                     required
                     value={departmentId}
-                    onChange={(e) => setDepartmentId(e.target.value)}
+                    onChange={(e) => handleDepartmentChange(e.target.value)}
                     className="w-full h-10 px-3 rounded-[8px] border border-[#E5E7EB] bg-white text-[#111827] hover:border-[#A78BFA] focus:outline-none focus:border-[#7C3AED]"
                   >
                     <option value="">-- Chọn phòng ban --</option>
@@ -446,46 +570,81 @@ export function EmployeeFormModal({
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-medium text-[#374151] mb-1">
-                    Chức vụ <span className="text-[#EF4444]">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[12px] font-medium text-[#374151]">
+                      Chức vụ <span className="text-[#EF4444]">*</span>
+                    </label>
+                    {isLoadingPositions && (
+                      <span className="text-[11px] text-[#7C3AED] animate-pulse">
+                        Đang lọc...
+                      </span>
+                    )}
+                  </div>
                   <select
                     required
                     value={positionId}
-                    onChange={(e) => setPositionId(e.target.value)}
-                    className="w-full h-10 px-3 rounded-[8px] border border-[#E5E7EB] bg-white text-[#111827] hover:border-[#A78BFA] focus:outline-none focus:border-[#7C3AED]"
+                    onChange={(e) => handlePositionChange(e.target.value)}
+                    disabled={!departmentId || isLoadingPositions}
+                    className="w-full h-10 px-3 rounded-[8px] border border-[#E5E7EB] bg-white text-[#111827] hover:border-[#A78BFA] focus:outline-none focus:border-[#7C3AED] disabled:bg-[#F3F4F6] disabled:text-[#9CA3AF] disabled:cursor-not-allowed"
                   >
                     <option value="">-- Chọn chức vụ --</option>
                     {positions.map((pos) => (
                       <option key={pos.id} value={pos.id}>
                         {pos.positionName} ({pos.positionCode})
+                        {pos.jobLevel === 1 ? " [BOD / Lãnh đạo]" : pos.jobLevel === 2 ? " [Quản lý/Lead]" : ""}
                       </option>
                     ))}
                   </select>
+                  {departmentId && positions.length === 0 && !isLoadingPositions && (
+                    <p className="text-[11px] text-[#DC2626] mt-1">
+                      Phòng ban này chưa có chức vụ phân bổ.
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-medium text-[#374151] mb-1">
-                    Quản lý trực tiếp (Direct Manager)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[12px] font-medium text-[#374151]">
+                      Quản lý trực tiếp
+                    </label>
+                    {isLoadingManagers && (
+                      <span className="text-[11px] text-[#7C3AED] animate-pulse">
+                        Đang lọc...
+                      </span>
+                    )}
+                  </div>
                   <select
                     value={directManagerId}
                     onChange={(e) => setDirectManagerId(e.target.value)}
-                    className="w-full h-10 px-3 rounded-[8px] border border-[#E5E7EB] bg-white text-[#111827] hover:border-[#A78BFA] focus:outline-none focus:border-[#7C3AED]"
+                    disabled={isExecutive || isLoadingManagers}
+                    className="w-full h-10 px-3 rounded-[8px] border border-[#E5E7EB] bg-white text-[#111827] hover:border-[#A78BFA] focus:outline-none focus:border-[#7C3AED] disabled:bg-[#F3F4F6] disabled:text-[#9CA3AF] disabled:cursor-not-allowed"
                   >
-                    <option value="">-- Không có / Báo cáo Ban Giám đốc --</option>
-                    {managers
-                      .filter(
-                        (m) =>
-                          m.id !== (initialDetail?.id ?? employeeId) &&
-                          m.status !== "Terminated"
-                      )
-                      .map((mgr) => (
+                    <option value="">
+                      {isExecutive
+                        ? "-- Báo cáo Hội đồng Quản trị (Không có Quản lý trực tiếp) --"
+                        : "-- Không có / Báo cáo Ban Giám đốc --"}
+                    </option>
+                    {!isExecutive &&
+                      managers.map((mgr) => (
                         <option key={mgr.id} value={mgr.id}>
                           {mgr.fullName} ({mgr.employeeCode} - {mgr.positionName})
+                          {mgr.isDepartmentHead ? " ⭐ Trưởng bộ phận" : mgr.jobLevel === 1 ? " [Ban Giám đốc]" : ""}
                         </option>
                       ))}
                   </select>
+                  {isExecutive ? (
+                    <p className="text-[11px] text-[#7C3AED] font-medium mt-1 flex items-center gap-1">
+                      🔒 Cấp Lãnh đạo điều hành / BOD - Trực thuộc Hội đồng Quản trị.
+                    </p>
+                  ) : isDeptHead ? (
+                    <p className="text-[11px] text-[#7C3AED] font-medium mt-1 flex items-center gap-1">
+                      ⭐ Trưởng bộ phận - Mặc định báo cáo trực tiếp Giám đốc cấp cao nhất.
+                    </p>
+                  ) : departmentId && managers.length === 0 && !isLoadingManagers ? (
+                    <p className="text-[11px] text-[#6B7280] mt-1">
+                      Chưa có quản lý cấp cao trong phòng ban này (Mặc định báo cáo Ban Giám đốc).
+                    </p>
+                  ) : null}
                 </div>
 
                 <div>
@@ -497,9 +656,9 @@ export function EmployeeFormModal({
                     onChange={(e) => setStatus(e.target.value)}
                     className="w-full h-10 px-3 rounded-[8px] border border-[#E5E7EB] bg-white text-[#111827] hover:border-[#A78BFA] focus:outline-none focus:border-[#7C3AED]"
                   >
-                    <option value="Probation">Thử việc (Probation)</option>
-                    <option value="Active">Chính thức (Active)</option>
-                    <option value="Suspended">Tạm đình chỉ (Suspended)</option>
+                    <option value="Probation">Thử việc</option>
+                    <option value="Active">Chính thức</option>
+                    <option value="Suspended">Tạm đình chỉ</option>
                   </select>
                 </div>
 
@@ -535,7 +694,7 @@ export function EmployeeFormModal({
               <div className="flex items-center gap-2 border-b border-[#E5E7EB] pb-2">
                 <span className="w-2 h-2 rounded-full bg-[#059669]" />
                 <h3 className="font-heading text-[15px] font-semibold text-[#111827]">
-                  3. Đãi ngộ, Bảo hiểm & Tài khoản Ngân hàng
+                  3. Tiền lương, Bảo hiểm & Tài khoản Ngân hàng
                 </h3>
               </div>
 
@@ -613,7 +772,7 @@ export function EmployeeFormModal({
         )}
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 border-t border-[#E5E7EB] bg-[#FAFAFA] flex items-center justify-end gap-3">
+        <div className="px-6 py-4 border-t border-[#E5E7EB] bg-[#FAFAFA] flex items-center justify-end gap-3 shrink-0">
           <button
             type="button"
             onClick={onClose}
@@ -630,7 +789,7 @@ export function EmployeeFormModal({
             {isSubmitting
               ? "Đang lưu hồ sơ..."
               : mode === "create"
-              ? "Tiếp nhận Thành viên"
+              ? "Lưu nhân viên"
               : "Lưu thay đổi"}
           </button>
         </div>
@@ -638,4 +797,3 @@ export function EmployeeFormModal({
     </div>
   );
 }
-

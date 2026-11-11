@@ -49,5 +49,6 @@ export interface PositionItem {
   positionName: string;
   description?: string | null;
   isActive: boolean;
+  jobLevel?: number;
 }
 

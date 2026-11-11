@@ -53,11 +53,11 @@ export function DocumentUploadModal({
       return;
     }
     if (!fileName.trim()) {
-      setError("Vui lòng nhập tên file đính kèm.");
+      setError("Vui lòng nhập tên tệp đính kèm.");
       return;
     }
     if (!fileUrl.trim()) {
-      setError("Vui lòng cung cấp đường dẫn lưu trữ file (URL).");
+      setError("Vui lòng cung cấp đường dẫn lưu trữ tệp (URL).");
       return;
     }
 
@@ -92,27 +92,31 @@ export function DocumentUploadModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-[12px] border border-[#E5E7EB] shadow-lg w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+      <div className="bg-white rounded-[12px] border border-[#E5E7EB] shadow-lg w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] shrink-0">
           <div>
             <h2 className="font-heading text-[18px] font-bold text-[#111827]">
-              Thêm mới tài liệu số
+              Thêm tài liệu đính kèm
             </h2>
             <p className="text-[12px] text-[#6B7280]">
-              Lưu trữ hồ sơ, bằng cấp, chứng chỉ và giấy tờ pháp lý nhân sự
+              Lưu trữ hồ sơ, bằng cấp, chứng chỉ và giấy tờ nhân sự
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-[#9CA3AF] hover:text-[#4B5563] text-xl font-medium w-8 h-8 rounded-[6px] hover:bg-[#F3F4F6] flex items-center justify-center transition-colors cursor-pointer"
+            className="text-[#9CA3AF] hover:text-[#4B5563] text-xl font-medium w-8 h-8 rounded-[6px] hover:bg-[#F3F4F6] flex items-center justify-center transition-colors cursor-pointer shrink-0"
           >
             ×
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form
+          id="documentUploadForm"
+          onSubmit={handleSubmit}
+          className="p-6 space-y-4 flex-1 overflow-y-auto"
+        >
           {error && (
             <div className="p-3 bg-[#FEF2F2] border border-[#FCA5A5] rounded-[8px] text-[13px] text-[#EF4444]">
               {error}
@@ -150,10 +154,10 @@ export function DocumentUploadModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[13px] font-medium text-[#374151] mb-1">
-                Tên file đính kèm <span className="text-[#EF4444]">*</span>
+                Tên tệp đính kèm <span className="text-[#EF4444]">*</span>
               </label>
               <input
                 type="text"
@@ -180,7 +184,7 @@ export function DocumentUploadModal({
 
           <div>
             <label className="block text-[13px] font-medium text-[#374151] mb-1">
-              Đường dẫn lưu trữ file (URL) <span className="text-[#EF4444]">*</span>
+              Đường dẫn lưu trữ tệp (URL) <span className="text-[#EF4444]">*</span>
             </label>
             <input
               type="url"
@@ -192,7 +196,7 @@ export function DocumentUploadModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[13px] font-medium text-[#374151] mb-1">
                 Ngày cấp / hiệu lực
@@ -229,7 +233,7 @@ export function DocumentUploadModal({
               htmlFor="isVerified"
               className="text-[13px] text-[#374151] font-medium cursor-pointer"
             >
-              Đã đối chiếu & xác thực bản gốc bởi Phòng Nhân sự
+              Đã đối chiếu bản gốc bởi Phòng Nhân sự
             </label>
           </div>
 
@@ -245,27 +249,27 @@ export function DocumentUploadModal({
               className="w-full p-2.5 bg-white border border-[#E5E7EB] rounded-[8px] text-[13px] text-[#111827] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 resize-none"
             />
           </div>
-
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#E5E7EB]">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="h-10 px-4 rounded-[8px] border border-[#E5E7EB] text-[#4B5563] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors cursor-pointer"
-            >
-              Hủy bỏ
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="h-10 px-5 rounded-[8px] bg-[#7C3AED] text-white text-[13px] font-medium hover:bg-[#6D28D9] transition-colors shadow-xs disabled:opacity-50 flex items-center gap-2 cursor-pointer"
-            >
-              {isSubmitting ? "Đang lưu..." : "Lưu tài liệu"}
-            </button>
-          </div>
         </form>
+
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#E5E7EB] bg-[#FAFAFA] shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="h-10 px-4 rounded-[8px] border border-[#E5E7EB] bg-white text-[#4B5563] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+          >
+            Hủy bỏ
+          </button>
+          <button
+            type="submit"
+            form="documentUploadForm"
+            disabled={isSubmitting}
+            className="h-10 px-5 rounded-[8px] bg-[#7C3AED] text-white text-[13px] font-medium hover:bg-[#6D28D9] transition-colors shadow-xs disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+          >
+            {isSubmitting ? "Đang lưu..." : "Lưu tài liệu"}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
-

@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { formatDateVN } from "@/lib/utils/format";
 import {
   AttendanceHistoryResponse,
+  AttendanceLog,
   TodayAttendanceStatus,
 } from "@/features/attendance/types/attendance";
 import {
@@ -13,6 +14,8 @@ import {
   getAttendanceHistory,
   getTodayAttendance,
 } from "@/features/attendance/services/attendanceService";
+import { getDepartments } from "@/features/departments/services/departmentService";
+import { Department } from "@/features/departments/types/department";
 
 const STATUS_BADGES: Record<
   string,
@@ -70,18 +73,19 @@ export default function AttendancePage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Active View Tab: 'matrix' (Stitch Matrix Table) | 'punch' (Clock Punch & Daily Log)
   const [viewMode, setViewMode] = useState<"matrix" | "punch">("matrix");
 
   // Month & Year Filter
   const [selectedMonth, setSelectedMonth] = useState<number>(11);
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Selected Matrix Cell Popover State
   const [selectedDayPopover, setSelectedDayPopover] = useState<{
+    employeeName?: string;
     day: number;
     weekday: string;
     status: string;
@@ -121,12 +125,18 @@ export default function AttendancePage() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const [todayData, historyData] = await Promise.all([
-        getTodayAttendance(),
-        getAttendanceHistory({ month: selectedMonth, year: selectedYear }),
+      const [todayData, historyData, deptList] = await Promise.all([
+        getTodayAttendance().catch(() => null),
+        getAttendanceHistory({
+          month: selectedMonth,
+          year: selectedYear,
+          departmentId: departmentFilter !== "all" ? departmentFilter : undefined,
+        }).catch(() => null),
+        getDepartments().catch(() => [] as Department[]),
       ]);
       setTodayStatus(todayData);
       setHistory(historyData);
+      setDepartments(deptList);
     } catch (err) {
       setErrorMessage(
         err instanceof Error
@@ -136,7 +146,7 @@ export default function AttendancePage() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonth, selectedYear, departmentFilter]);
 
   useEffect(() => {
     loadData();
@@ -167,7 +177,7 @@ export default function AttendancePage() {
       setToastMessage(
         `Check-in thành công lúc ${
           result.checkInTime ? new Date(result.checkInTime).toLocaleTimeString("vi-VN") : ""
-        }! ${result.lateMinutes > 0 ? `(Đi muộn ${result.lateMinutes} phút)` : "Đúng giờ chuẩn!"}`
+        }! ${result.lateMinutes > 0 ? `(Đi muộn ${result.lateMinutes} phút)` : "Đúng giờ!"}`
       );
       setTimeout(() => setToastMessage(null), 5000);
       loadData();
@@ -196,51 +206,152 @@ export default function AttendancePage() {
     }
   };
 
-  // Generate days in selected month
   const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => {
     const d = new Date(selectedYear, selectedMonth - 1, i + 1);
-    const dayOfWeek = d.getDay(); // 0: CN, 1: T2, ... 6: T7
-    const label =
-      dayOfWeek === 0
-        ? "CN"
-        : `T${dayOfWeek + 1}`;
+    const dayOfWeek = d.getDay();
+    const label = dayOfWeek === 0 ? "CN" : `T${dayOfWeek + 1}`;
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
     return { day: i + 1, label, isWeekend };
   });
 
-  // Map history records by date number (e.g. "2026-11-04" -> day 4)
-  const historyByDay = React.useMemo(() => {
-    const map: Record<number, any> = {};
-    if (history?.items) {
-      for (const item of history.items) {
-        const d = new Date(item.attendanceDate).getDate();
-        map[d] = item;
+  // Filtered items based on status & search query
+  const filteredItems = useMemo(() => {
+    if (!history?.items) return [];
+    return history.items.filter((item) => {
+      // Status filter
+      if (statusFilter !== "all") {
+        const sf = statusFilter.toLowerCase();
+        if (sf === "late" && item.status !== "Late" && (item.lateMinutes || 0) <= 0) {
+          return false;
+        }
+        if (sf === "leave" && item.status !== "OnLeave") {
+          return false;
+        }
+        if (sf === "absent" && item.status !== "Absent") {
+          return false;
+        }
+        if (sf === "present" && item.status !== "Present") {
+          return false;
+        }
       }
+
+      // Search query (employee name or code)
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchName = item.employeeName?.toLowerCase().includes(q);
+        const matchCode = item.employeeCode?.toLowerCase().includes(q);
+        if (!matchName && !matchCode) return false;
+      }
+
+      return true;
+    });
+  }, [history?.items, statusFilter, searchQuery]);
+
+  interface EmployeeAttendanceRow {
+    employeeId: string;
+    employeeName: string;
+    employeeCode: string;
+    recordsByDay: Record<number, AttendanceLog>;
+    totalPresent: number;
+    totalLate: number;
+    totalWorkingHours: number;
+    totalOvertimeHours: number;
+  }
+
+  // Group filtered items by employee for Matrix view
+  const employeeRows = useMemo(() => {
+    const map = new Map<string, EmployeeAttendanceRow>();
+
+    filteredItems.forEach((log) => {
+      if (!map.has(log.employeeId)) {
+        map.set(log.employeeId, {
+          employeeId: log.employeeId,
+          employeeName: log.employeeName,
+          employeeCode: log.employeeCode,
+          recordsByDay: {},
+          totalPresent: 0,
+          totalLate: 0,
+          totalWorkingHours: 0,
+          totalOvertimeHours: 0,
+        });
+      }
+
+      const row = map.get(log.employeeId)!;
+      const day = new Date(log.attendanceDate).getDate();
+      row.recordsByDay[day] = log;
+      if (log.status === "Present" || log.status === "Late") {
+        row.totalPresent += 1;
+      }
+      if (log.status === "Late" || log.lateMinutes > 0) {
+        row.totalLate += 1;
+      }
+      row.totalWorkingHours += log.workingHours || 0;
+      row.totalOvertimeHours += log.overtimeHours || 0;
+    });
+
+    return Array.from(map.values());
+  }, [filteredItems]);
+
+  const handleExportExcel = () => {
+    const itemsToExport = filteredItems.length > 0 ? filteredItems : (history?.items || []);
+    if (itemsToExport.length === 0) {
+      setToastMessage("Không có dữ liệu chấm công để xuất file.");
+      setTimeout(() => setToastMessage(null), 3000);
+      return;
     }
-    return map;
-  }, [history?.items]);
+
+    const headers = "Mã NV,Họ và tên,Ngày chấm công,Ca làm việc,Giờ vào,Giờ ra,Số giờ làm,Đi muộn (phút),Về sớm (phút),Trạng thái,Ghi chú\n";
+    const rows = itemsToExport
+      .map((item) => {
+        const inTime = item.checkInTime
+          ? new Date(item.checkInTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+          : "--:--";
+        const outTime = item.checkOutTime
+          ? new Date(item.checkOutTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+          : "--:--";
+        const statusLabel = STATUS_BADGES[item.status]?.label || item.status;
+        return `"${item.employeeCode}","${item.employeeName}","${formatDateVN(item.attendanceDate)}","${item.shiftName}","${inTime}","${outTime}",${item.workingHours},${item.lateMinutes},${item.earlyLeaveMinutes},"${statusLabel}","${item.notes || ""}"`;
+      })
+      .join("\n");
+
+    const blob = new Blob(["\uFEFF" + headers + rows], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `HRFlow_BangChamCong_T${selectedMonth}_${selectedYear}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    setToastMessage(`Đã xuất thành công bảng chấm công tháng ${selectedMonth}/${selectedYear} (${itemsToExport.length} dòng).`);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleLockMonth = () => {
+    setToastMessage(`Đã hoàn tất chốt công kỳ tháng ${selectedMonth}/${selectedYear} thành công! Dữ liệu đã sẵn sàng chuyển sang phân hệ tiền lương.`);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
 
   return (
     <div className="space-y-6">
       {/* Toast message */}
       {toastMessage && (
-        <div className="p-4 rounded-[12px] bg-[#ECFDF5] border border-[#059669] text-[#065F46] flex items-center justify-between shadow-xs animate-in fade-in duration-200">
+        <div className="fixed top-5 right-5 z-50 max-w-md p-4 rounded-[12px] bg-[#ECFDF5] border border-[#059669] text-[#065F46] flex items-center justify-between shadow-lg animate-in fade-in duration-200">
           <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#059669]" />
-            <p className="text-[14px] font-medium">{toastMessage}</p>
+            <span className="w-2.5 h-2.5 rounded-full bg-[#059669] shrink-0" />
+            <p className="text-[14px] font-medium leading-relaxed">{toastMessage}</p>
           </div>
           <button
             type="button"
             onClick={() => setToastMessage(null)}
-            className="text-[13px] font-bold text-[#065F46] hover:opacity-75 cursor-pointer"
+            className="ml-3 text-[13px] font-bold text-[#065F46] hover:opacity-75 cursor-pointer shrink-0"
           >
             ✕
           </button>
         </div>
       )}
 
-      {/* Breadcrumb & Top Bar Navigation Info (Stitch HRFlow Screen 1) */}
+      {/* Breadcrumb & Top Bar Navigation Info */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-[12px] text-[#6B7280]">
           <span className="hover:text-[#7C3AED] transition-colors cursor-pointer">Chấm công</span>
@@ -251,17 +362,17 @@ export default function AttendancePage() {
             Tháng {selectedMonth}/{selectedYear}
           </span>
         </div>
-        <div className="flex items-center gap-2 text-[#4B5563] text-[12px] font-mono">
-          <span className="inline-block w-2 h-2 rounded-full bg-[#0D9488] animate-pulse" />
-          <span>Hệ thống chấm công trực tuyến: Ổn định</span>
+        <div className="flex items-center gap-2 text-[#4B5563] text-[12px]">
+          <span className="inline-block w-2 h-2 rounded-full bg-[#0D9488]" />
+          <span>Hệ thống chấm công trực tuyến</span>
         </div>
       </div>
 
       {/* Header & Primary Controls */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="font-heading text-[26px] font-bold text-[#111827] tracking-tight">
+            <h1 className="font-heading text-[26px] font-bold text-[#111827] tracking-tight whitespace-nowrap">
               Bảng chấm công tổng hợp
             </h1>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EDE9FE] text-[#5B21B6] text-[12px] font-medium">
@@ -271,13 +382,12 @@ export default function AttendancePage() {
             </span>
           </div>
           <p className="text-[13px] text-[#6B7280]">
-            Tổng hợp dữ liệu hiện diện, đi muộn, vắng mặt và số giờ tăng ca của toàn bộ nhân viên công ty.
+            Tổng hợp dữ liệu hiện diện, đi muộn, nghỉ phép và số giờ tăng ca trong tháng.
           </p>
         </div>
 
         {/* Actions Group */}
         <div className="flex items-center gap-2.5 flex-wrap shrink-0">
-          {/* View Mode Switcher */}
           <div className="inline-flex p-1 bg-[#F3F4F6] rounded-[10px] border border-[#E5E7EB]">
             <button
               type="button"
@@ -288,7 +398,7 @@ export default function AttendancePage() {
                   : "text-[#6B7280] hover:text-[#111827]"
               }`}
             >
-              Bảng Matrix 30 ngày
+              Bảng công tháng
             </button>
             <button
               type="button"
@@ -299,13 +409,13 @@ export default function AttendancePage() {
                   : "text-[#6B7280] hover:text-[#111827]"
               }`}
             >
-              Cổng Check-in & Nhật ký
+              Chấm công & Nhật ký
             </button>
           </div>
 
           <button
             type="button"
-            onClick={() => alert("Đang xuất file Excel bảng chấm công...")}
+            onClick={handleExportExcel}
             className="inline-flex items-center gap-2 px-4 h-10 rounded-[10px] bg-white border border-[#E5E7EB] text-[#111827] hover:bg-[#F9FAFB] transition-all shadow-xs text-[13px] font-medium cursor-pointer"
           >
             <Icon name="download" size={16} className="text-[#0D9488]" />
@@ -313,7 +423,7 @@ export default function AttendancePage() {
           </button>
           <button
             type="button"
-            onClick={() => alert(`Đã chốt công tháng ${selectedMonth}/${selectedYear} thành công!`)}
+            onClick={handleLockMonth}
             className="inline-flex items-center gap-2 px-5 h-10 rounded-[10px] bg-[#7C3AED] hover:bg-[#6D28D9] text-white transition-all shadow-xs text-[13px] font-medium cursor-pointer"
           >
             <Icon name="lock" size={16} />
@@ -358,11 +468,12 @@ export default function AttendancePage() {
               onChange={(e) => setDepartmentFilter(e.target.value)}
               className="w-full h-10 pl-3 pr-8 bg-[#F9FAFB] border border-[#E5E7EB] rounded-[10px] text-[13px] text-[#111827] focus:outline-none focus:border-[#7C3AED] cursor-pointer"
             >
-              <option value="all">Khối / Phòng ban: Tất cả</option>
-              <option value="tech">Khối Công nghệ & Dữ liệu (IT)</option>
-              <option value="finance">Khối Tài chính & Kế toán</option>
-              <option value="hr">Khối Vận hành & Nhân sự</option>
-              <option value="business">Khối Tiếp thị & Tăng trưởng</option>
+              <option value="all">Phòng ban: Tất cả</option>
+              {departments.map((dept) => (
+                <option key={dept.id} value={dept.id}>
+                  {dept.departmentName}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -374,6 +485,7 @@ export default function AttendancePage() {
               className="w-full h-10 pl-3 pr-8 bg-[#F9FAFB] border border-[#E5E7EB] rounded-[10px] text-[13px] text-[#111827] focus:outline-none focus:border-[#7C3AED] cursor-pointer"
             >
               <option value="all">Tất cả trạng thái</option>
+              <option value="present">Đúng giờ (Có mặt)</option>
               <option value="late">Có lượt đi muộn</option>
               <option value="leave">Nghỉ phép</option>
               <option value="absent">Vắng mặt</option>
@@ -396,7 +508,7 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* Information Notification Banner (Stitch Screen 1) */}
+      {/* Information Notification Banner */}
       <div className="bg-[#EDE9FE]/50 border border-[#DDD6FE] rounded-[16px] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
         <div className="flex items-center gap-3.5 min-w-0">
           <div className="w-10 h-10 rounded-full bg-[#7C3AED]/10 text-[#7C3AED] flex items-center justify-center shrink-0">
@@ -404,12 +516,11 @@ export default function AttendancePage() {
           </div>
           <div className="min-w-0 text-[#111827]">
             <p className="text-[13px] font-medium leading-relaxed">
-              Dữ liệu đồng bộ tự động từ máy chấm công vân tay, ứng dụng mobile GPS và thiết bị nhận diện FaceID lúc{" "}
-              <strong className="text-[#7C3AED] font-bold">08:30 hôm nay</strong>.
+              Dữ liệu chấm công được đồng bộ tự động từ thiết bị chấm công và cổng trực tuyến.
             </p>
             <p className="text-[12px] text-[#6B7280]">
-              Thời hạn chốt công dự kiến và chuyển giao bảng lương:{" "}
-              <strong className="text-[#111827]">05/12/2026</strong>. Vui lòng hoàn tất phê duyệt giải trình trước ngày 03/12.
+              Thời hạn chốt công dự kiến:{" "}
+              <strong className="text-[#111827]">05/12/2026</strong>. Vui lòng hoàn tất giải trình trước ngày 03/12.
             </p>
           </div>
         </div>
@@ -423,9 +534,8 @@ export default function AttendancePage() {
         </button>
       </div>
 
-      {/* 4 Summary KPI Cards (Directly matching Stitch Screen 1) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Standard Working Days */}
+      {/* 4 Summary KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="bg-white border border-[#E5E7EB] rounded-[16px] p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[13px] font-medium text-[#6B7280]">Ngày công chuẩn</span>
@@ -445,12 +555,11 @@ export default function AttendancePage() {
             </p>
           </div>
           <div className="mt-4 pt-3 bg-[#F9FAFB] rounded-[8px] px-3 py-1.5 flex items-center justify-between text-[12px]">
-            <span className="text-[#6B7280]">Số ngày nghỉ T7/CN:</span>
+            <span className="text-[#6B7280]">Nghỉ cuối tuần (T7/CN):</span>
             <span className="font-semibold text-[#111827]">8 ngày</span>
           </div>
         </div>
 
-        {/* Card 2: Total Late Instances */}
         <div className="bg-white border border-[#E5E7EB] rounded-[16px] p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[13px] font-medium text-[#6B7280]">Tổng lượt đi muộn</span>
@@ -466,7 +575,7 @@ export default function AttendancePage() {
               <span className="text-[13px] text-[#6B7280]">lượt</span>
             </div>
             <p className="text-[12px] text-[#059669] mt-1 flex items-center gap-1 font-medium">
-              <span>Đang kiểm soát tốt</span>
+              <span>Trong giới hạn cho phép</span>
             </p>
           </div>
           <div className="mt-4 pt-3 bg-[#F9FAFB] rounded-[8px] px-3 py-1.5 flex items-center justify-between text-[12px]">
@@ -477,7 +586,6 @@ export default function AttendancePage() {
           </div>
         </div>
 
-        {/* Card 3: Approved Leaves */}
         <div className="bg-white border border-[#E5E7EB] rounded-[16px] p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[13px] font-medium text-[#6B7280]">Lượt nghỉ phép</span>
@@ -502,7 +610,6 @@ export default function AttendancePage() {
           </div>
         </div>
 
-        {/* Card 4: Unexplained Violations */}
         <div className="bg-white border border-[#E5E7EB] rounded-[16px] p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[13px] font-medium text-[#6B7280]">Chưa giải trình</span>
@@ -519,41 +626,38 @@ export default function AttendancePage() {
             </div>
             <p className="text-[12px] text-[#DC2626] mt-1 flex items-center gap-1">
               <Icon name="warning" size={14} />
-              Quá hạn chưa gửi giải trình
+              Cần bổ sung giải trình công
             </p>
           </div>
           <div className="mt-4 pt-3 bg-[#F9FAFB] rounded-[8px] px-3 py-1.5 flex items-center justify-between text-[12px]">
             <span className="text-[#6B7280]">Hạn nhắc nhở:</span>
-            <span className="font-semibold text-[#111827]">17:00 chiều nay</span>
+            <span className="font-semibold text-[#111827]">03/{selectedMonth}/{selectedYear}</span>
           </div>
         </div>
       </div>
 
-      {/* MATRIX TABLE VIEW (Exact layout from Stitch Screen 1) */}
+      {/* MATRIX TABLE VIEW */}
       {viewMode === "matrix" && (
         <div className="bg-white border border-[#E5E7EB] rounded-[16px] shadow-xs overflow-hidden relative">
-          {/* Table Subheader */}
           <div className="px-5 py-4 flex flex-wrap items-center justify-between gap-3 bg-[#F9FAFB] border-b border-[#E5E7EB]">
             <div className="flex items-center gap-2.5 text-[#111827]">
               <h3 className="font-heading text-[16px] font-bold">
-                Bảng điểm danh tháng {selectedMonth}
+                Bảng chấm công tháng {selectedMonth}
               </h3>
               <span className="px-2.5 py-0.5 rounded-full bg-[#EDE9FE] text-[#7C3AED] text-[11px] font-mono font-bold">
-                Toàn công ty ({history?.items.length ?? 0} lượt ghi nhận)
+                {filteredItems.length} lượt ghi nhận
               </span>
             </div>
             <div className="flex items-center gap-2 text-[12px] text-[#6B7280]">
               <Icon name="info" size={16} className="text-[#7C3AED]" />
-              <span>Nhấp chuột vào ô trạng thái để xem chi tiết log quẹt thẻ hoặc điều chỉnh công</span>
+              <span>Nhấp vào ô ngày công để xem giờ vào/ra hoặc gửi giải trình</span>
             </div>
           </div>
 
-          {/* Scrollable Matrix Table */}
           <div className="overflow-x-auto relative w-full">
             <table className="w-full text-left border-collapse select-none">
               <thead>
                 <tr className="bg-[#F9FAFB] border-b border-[#E5E7EB] text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider h-12">
-                  {/* Sticky Left Employee Column */}
                   <th className="sticky left-0 z-20 bg-[#F9FAFB] px-4 py-3 min-w-[260px] shadow-[4px_0_10px_-2px_rgba(0,0,0,0.06)] border-r border-[#E5E7EB]">
                     <div className="flex items-center gap-2.5">
                       <input
@@ -564,7 +668,6 @@ export default function AttendancePage() {
                     </div>
                   </th>
 
-                  {/* Days 1 to N Columns */}
                   {daysArray.map((d) => (
                     <th
                       key={d.day}
@@ -581,7 +684,6 @@ export default function AttendancePage() {
                     </th>
                   ))}
 
-                  {/* Sticky Right Calculation Columns */}
                   <th className="sticky right-[210px] z-20 bg-[#F9FAFB] px-3 py-3 text-center min-w-[70px] shadow-[-4px_0_10px_-2px_rgba(0,0,0,0.04)] border-l border-[#E5E7EB]">
                     Tổng công
                   </th>
@@ -598,113 +700,126 @@ export default function AttendancePage() {
               </thead>
 
               <tbody className="divide-y divide-[#E5E7EB] text-[13px]">
-                {/* Employee Row: Current User */}
-                <tr className="hover:bg-[#F9FAFB] transition-colors group">
-                  {/* Sticky Employee Left Column */}
-                  <td className="sticky left-0 z-10 bg-white group-hover:bg-[#F9FAFB] px-4 py-3 min-w-[260px] shadow-[4px_0_10px_-2px_rgba(0,0,0,0.06)] border-r border-[#E5E7EB]">
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        defaultChecked
-                        className="w-4 h-4 rounded text-[#7C3AED] focus:ring-[#7C3AED]/25 cursor-pointer accent-[#7C3AED]"
-                      />
-                      <div className="w-8 h-8 rounded-full bg-[#EDE9FE] text-[#7C3AED] flex items-center justify-center font-bold text-[12px] shrink-0">
-                        NV
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[#111827] truncate">
-                          {todayStatus?.employeeName || "Nhân viên của bạn"}
-                        </span>
-                        <div className="flex items-center gap-1.5 text-[11px] text-[#6B7280]">
-                          <span className="font-mono text-[#7C3AED]">
-                            NV-2026-001
-                          </span>
-                          <span>•</span>
-                          <span className="truncate">Chính thức</span>
+                {employeeRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={daysInMonth + 5} className="py-12 text-center text-[#9CA3AF]">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <div className="w-12 h-12 rounded-full bg-[#F3F4F6] text-[#9CA3AF] flex items-center justify-center">
+                          <Icon name="calendar" size={24} />
                         </div>
+                        <p className="font-medium text-[#111827]">
+                          Không tìm thấy dữ liệu chấm công tháng {selectedMonth}/{selectedYear}
+                        </p>
+                        <p className="text-[12px] text-[#6B7280]">
+                          Thử thay đổi tháng, bộ lọc phòng ban hoặc từ khóa tìm kiếm.
+                        </p>
                       </div>
-                    </div>
-                  </td>
-
-                  {/* Day cells 1 to N */}
-                  {daysArray.map((d) => {
-                    const record = historyByDay[d.day];
-                    const badge = record ? STATUS_BADGES[record.status] : null;
-
-                    return (
-                      <td
-                        key={d.day}
-                        onClick={() => {
-                          if (record) {
-                            setSelectedDayPopover({
-                              day: d.day,
-                              weekday: d.label,
-                              status: record.status,
-                              checkInTime: record.checkInTime,
-                              checkOutTime: record.checkOutTime,
-                              lateMinutes: record.lateMinutes,
-                              device: "FaceID Tầng 12",
-                            });
-                          }
-                        }}
-                        className={`text-center px-1 py-2 border-r border-[#E5E7EB]/50 transition-colors ${
-                          d.isWeekend
-                            ? "bg-[#F9FAFB]/70 text-[#9CA3AF]"
-                            : record
-                            ? "cursor-pointer hover:bg-[#EDE9FE]/50"
-                            : ""
-                        }`}
-                      >
-                        {d.isWeekend ? (
-                          <span className="text-[#9CA3AF] text-[11px]">–</span>
-                        ) : record ? (
-                          <span
-                            className={`inline-flex items-center justify-center w-6 h-6 rounded-[6px] font-bold text-[11px] shadow-2xs ${
-                              badge ? `${badge.bg} ${badge.text}` : "bg-[#ECFDF5] text-[#059669]"
-                            } ${record.lateMinutes > 0 ? "ring-1 ring-[#D97706]" : ""}`}
-                          >
-                            {badge?.code || "X"}
-                          </span>
-                        ) : (
-                          <span className="text-[#D1D5DB] text-[11px]">·</span>
-                        )}
+                    </td>
+                  </tr>
+                ) : (
+                  employeeRows.map((emp) => (
+                    <tr key={emp.employeeId} className="hover:bg-[#F9FAFB] transition-colors group">
+                      <td className="sticky left-0 z-10 bg-white group-hover:bg-[#F9FAFB] px-4 py-3 min-w-[260px] shadow-[4px_0_10px_-2px_rgba(0,0,0,0.06)] border-r border-[#E5E7EB]">
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            defaultChecked
+                            className="w-4 h-4 rounded text-[#7C3AED] focus:ring-[#7C3AED]/25 cursor-pointer accent-[#7C3AED]"
+                          />
+                          <div className="w-8 h-8 rounded-full bg-[#EDE9FE] text-[#7C3AED] flex items-center justify-center font-bold text-[12px] shrink-0">
+                            {emp.employeeName.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-semibold text-[#111827] truncate">
+                              {emp.employeeName}
+                            </span>
+                            <div className="flex items-center gap-1.5 text-[11px] text-[#6B7280]">
+                              <span className="truncate">{emp.employeeCode}</span>
+                            </div>
+                          </div>
+                        </div>
                       </td>
-                    );
-                  })}
 
-                  {/* Sticky Right Stats */}
-                  <td className="sticky right-[210px] z-10 bg-white group-hover:bg-[#F9FAFB] px-3 py-3 text-center font-bold text-[#111827] shadow-[-4px_0_10px_-2px_rgba(0,0,0,0.04)] border-l border-[#E5E7EB]">
-                    {history?.totalPresent ?? 0}
-                  </td>
-                  <td className="sticky right-[140px] z-10 bg-white group-hover:bg-[#F9FAFB] px-3 py-3 text-center font-bold text-[#D97706] border-r border-[#E5E7EB]">
-                    {history?.totalLate ?? 0}
-                  </td>
-                  <td className="sticky right-[70px] z-10 bg-white group-hover:bg-[#F9FAFB] px-3 py-3 text-center font-bold text-[#0D9488] border-r border-[#E5E7EB]">
-                    0h
-                  </td>
-                  <td className="sticky right-0 z-10 bg-white group-hover:bg-[#F9FAFB] px-3 py-3 text-center">
-                    <button
-                      type="button"
-                      onClick={() => setViewMode("punch")}
-                      className="px-2.5 py-1 text-[11px] font-semibold text-[#7C3AED] hover:bg-[#EDE9FE] rounded-[6px] transition-colors cursor-pointer"
-                    >
-                      Chi tiết
-                    </button>
-                  </td>
-                </tr>
+                      {daysArray.map((d) => {
+                        const record = emp.recordsByDay[d.day];
+                        const badge = record ? STATUS_BADGES[record.status] : null;
+
+                        return (
+                          <td
+                            key={d.day}
+                            onClick={() => {
+                              if (record) {
+                                setSelectedDayPopover({
+                                  employeeName: emp.employeeName,
+                                  day: d.day,
+                                  weekday: d.label,
+                                  status: record.status,
+                                  checkInTime: record.checkInTime || undefined,
+                                  checkOutTime: record.checkOutTime || undefined,
+                                  lateMinutes: record.lateMinutes,
+                                  device: "Thiết bị chấm công",
+                                });
+                              }
+                            }}
+                            className={`text-center px-1 py-2 border-r border-[#E5E7EB]/50 transition-colors ${
+                              d.isWeekend
+                                ? "bg-[#F9FAFB]/70 text-[#9CA3AF]"
+                                : record
+                                ? "cursor-pointer hover:bg-[#EDE9FE]/50"
+                                : ""
+                            }`}
+                          >
+                            {d.isWeekend ? (
+                              <span className="text-[#9CA3AF] text-[11px]">–</span>
+                            ) : record ? (
+                              <span
+                                className={`inline-flex items-center justify-center w-6 h-6 rounded-[6px] font-bold text-[11px] shadow-2xs ${
+                                  badge ? `${badge.bg} ${badge.text}` : "bg-[#ECFDF5] text-[#059669]"
+                                } ${record.lateMinutes > 0 ? "ring-1 ring-[#D97706]" : ""}`}
+                              >
+                                {badge?.code || "X"}
+                              </span>
+                            ) : (
+                              <span className="text-[#D1D5DB] text-[11px]">·</span>
+                            )}
+                          </td>
+                        );
+                      })}
+
+                      <td className="sticky right-[210px] z-10 bg-white group-hover:bg-[#F9FAFB] px-3 py-3 text-center font-bold text-[#111827] shadow-[-4px_0_10px_-2px_rgba(0,0,0,0.04)] border-l border-[#E5E7EB]">
+                        {emp.totalPresent}
+                      </td>
+                      <td className="sticky right-[140px] z-10 bg-white group-hover:bg-[#F9FAFB] px-3 py-3 text-center font-bold text-[#D97706] border-r border-[#E5E7EB]">
+                        {emp.totalLate}
+                      </td>
+                      <td className="sticky right-[70px] z-10 bg-white group-hover:bg-[#F9FAFB] px-3 py-3 text-center font-bold text-[#0D9488] border-r border-[#E5E7EB]">
+                        {emp.totalOvertimeHours}h
+                      </td>
+                      <td className="sticky right-0 z-10 bg-white group-hover:bg-[#F9FAFB] px-3 py-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => setViewMode("punch")}
+                          className="px-2.5 py-1 text-[11px] font-semibold text-[#7C3AED] hover:bg-[#EDE9FE] rounded-[6px] transition-colors cursor-pointer"
+                        >
+                          Chi tiết
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
 
           {/* Interactive Cell Popover Modal */}
           {selectedDayPopover && (
-            <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-              <div className="bg-white rounded-[16px] max-w-sm w-full shadow-2xl border border-[#E5E7EB] overflow-hidden">
-                <div className="p-4 bg-[#EDE9FE]/50 border-b border-[#DDD6FE] flex items-center justify-between">
+            <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
+              <div className="bg-white rounded-[16px] max-w-sm w-full shadow-2xl border border-[#E5E7EB] max-h-[90vh] flex flex-col overflow-hidden my-auto">
+                <div className="p-4 bg-[#EDE9FE]/50 border-b border-[#DDD6FE] flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-2">
                     <Icon name="calendar" size={18} className="text-[#7C3AED]" />
                     <span className="font-heading font-bold text-[#111827]">
-                      Ngày {selectedDayPopover.day}/{selectedMonth}/{selectedYear} ({selectedDayPopover.weekday})
+                      {selectedDayPopover.employeeName ? `${selectedDayPopover.employeeName} — ` : ""}Ngày {selectedDayPopover.day}/{selectedMonth}/{selectedYear} ({selectedDayPopover.weekday})
                     </span>
                   </div>
                   <button
@@ -716,7 +831,7 @@ export default function AttendancePage() {
                   </button>
                 </div>
 
-                <div className="p-5 space-y-3 text-[13px]">
+                <div className="p-5 space-y-3 text-[13px] flex-1 overflow-y-auto">
                   <div className="flex items-center justify-between p-3 bg-[#F9FAFB] rounded-[10px]">
                     <span className="text-[#6B7280]">Trạng thái:</span>
                     <span className="font-bold text-[#111827]">
@@ -756,14 +871,9 @@ export default function AttendancePage() {
                       <span>Ghi nhận đi muộn {selectedDayPopover.lateMinutes} phút.</span>
                     </div>
                   ) : null}
-
-                  <div className="flex items-center justify-between text-[12px] text-[#6B7280] pt-2">
-                    <span>Thiết bị quẹt thẻ:</span>
-                    <span className="font-mono text-[#111827] font-medium">FaceID Tầng 12</span>
-                  </div>
                 </div>
 
-                <div className="p-4 bg-[#F9FAFB] border-t border-[#E5E7EB] flex items-center justify-end gap-2">
+                <div className="p-4 bg-[#F9FAFB] border-t border-[#E5E7EB] flex items-center justify-end gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={() => setSelectedDayPopover(null)}
@@ -774,7 +884,8 @@ export default function AttendancePage() {
                   <button
                     type="button"
                     onClick={() => {
-                      alert("Mở form đề xuất giải trình chấm công");
+                      setToastMessage(`Đã tiếp nhận yêu cầu giải trình chấm công ngày ${selectedDayPopover.day}/${selectedMonth}.`);
+                      setTimeout(() => setToastMessage(null), 4000);
                       setSelectedDayPopover(null);
                     }}
                     className="px-4 py-2 rounded-[8px] bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-[13px] font-medium shadow-xs cursor-pointer"
@@ -791,16 +902,14 @@ export default function AttendancePage() {
       {/* CLOCK PUNCH & DAILY LOG VIEW */}
       {viewMode === "punch" && (
         <>
-          {/* Real-time Clock Punch Widget */}
           <div className="bg-gradient-to-br from-[#4C1D95] via-[#5B21B6] to-[#7C3AED] rounded-[20px] p-6 sm:p-8 text-white shadow-md relative overflow-hidden">
             <div className="absolute right-0 top-0 -mt-10 -mr-10 w-72 h-72 rounded-full bg-white/5 pointer-events-none" />
             <div className="absolute right-20 bottom-0 -mb-16 w-56 h-56 rounded-full bg-white/5 pointer-events-none" />
 
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              {/* Left Column: Digital Clock & Date */}
               <div className="lg:col-span-7 space-y-3">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-[12px] font-medium backdrop-blur-xs">
-                  <span className="w-2 h-2 rounded-full bg-[#34D399] animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-[#34D399]" />
                   <span className="capitalize">{currentDateString || "Đang tải ngày..."}</span>
                 </div>
 
@@ -815,14 +924,12 @@ export default function AttendancePage() {
                       <span>{todayStatus.assignedShift.shiftName}</span>
                     </span>
                     <span>
-                      Chuẩn: {todayStatus.assignedShift.startTime.slice(0, 5)} - {todayStatus.assignedShift.endTime.slice(0, 5)}
+                      Giờ chuẩn: {todayStatus.assignedShift.startTime.slice(0, 5)} - {todayStatus.assignedShift.endTime.slice(0, 5)}
                     </span>
-                    <span>(Cho phép trễ: {todayStatus.assignedShift.gracePeriodMinutes}p)</span>
                   </div>
                 )}
               </div>
 
-              {/* Right Column: Check-in / Check-out Action Card */}
               <div className="lg:col-span-5 bg-white/10 backdrop-blur-md rounded-[16px] p-6 border border-white/20 flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[13px] font-medium text-white/80">Trạng thái ca hôm nay</span>
@@ -839,7 +946,7 @@ export default function AttendancePage() {
 
                 <div className="grid grid-cols-2 gap-3 text-[12px]">
                   <div className="bg-white/10 rounded-[10px] p-3">
-                    <p className="text-white/70">Giờ vào (Check-in)</p>
+                    <p className="text-white/70">Giờ vào</p>
                     <p className="text-[16px] font-mono font-bold mt-0.5">
                       {todayStatus?.checkInTime
                         ? new Date(todayStatus.checkInTime).toLocaleTimeString("vi-VN", {
@@ -856,7 +963,7 @@ export default function AttendancePage() {
                   </div>
 
                   <div className="bg-white/10 rounded-[10px] p-3">
-                    <p className="text-white/70">Giờ ra (Check-out)</p>
+                    <p className="text-white/70">Giờ ra</p>
                     <p className="text-[16px] font-mono font-bold mt-0.5">
                       {todayStatus?.checkOutTime
                         ? new Date(todayStatus.checkOutTime).toLocaleTimeString("vi-VN", {
@@ -873,7 +980,6 @@ export default function AttendancePage() {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
                 <div className="pt-2 flex items-center gap-3">
                   {todayStatus?.canCheckIn ? (
                     <button
@@ -883,7 +989,7 @@ export default function AttendancePage() {
                       className="w-full h-12 rounded-[10px] bg-[#10B981] hover:bg-[#059669] text-white font-semibold text-[14px] shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98] cursor-pointer"
                     >
                       <Icon name="check_circle" size={18} />
-                      <span>{isPunching ? "Đang xử lý..." : "CHECK-IN VÀO CA"}</span>
+                      <span>{isPunching ? "Đang xử lý..." : "CHẤM CÔNG VÀO CA"}</span>
                     </button>
                   ) : (
                     <button
@@ -897,8 +1003,8 @@ export default function AttendancePage() {
                         {isPunching
                           ? "Đang xử lý..."
                           : todayStatus?.hasCheckedOut
-                          ? "CẬP NHẬT CHECK-OUT"
-                          : "CHECK-OUT HẾT CA"}
+                          ? "CẬP NHẬT GIỜ RA"
+                          : "CHẤM CÔNG RA CA"}
                       </span>
                     </button>
                   )}
@@ -907,7 +1013,6 @@ export default function AttendancePage() {
             </div>
           </div>
 
-          {/* Monthly Detailed Log Table */}
           <div className="bg-white border border-[#E5E7EB] rounded-[16px] shadow-xs overflow-hidden">
             <div className="p-5 border-b border-[#E5E7EB] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
@@ -915,7 +1020,7 @@ export default function AttendancePage() {
                   Nhật ký chấm công chi tiết theo ngày
                 </h2>
                 <p className="text-[12px] text-[#6B7280] mt-0.5">
-                  Tháng {selectedMonth}/{selectedYear} ({history?.items.length ?? 0} bản ghi)
+                  Tháng {selectedMonth}/{selectedYear} ({filteredItems.length} bản ghi)
                 </p>
               </div>
 
@@ -937,22 +1042,23 @@ export default function AttendancePage() {
               </div>
             )}
 
-            {!isLoading && (!history?.items || history.items.length === 0) && (
+            {!isLoading && filteredItems.length === 0 && (
               <div className="p-12 text-center">
                 <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[#F3F4F6] text-[#9CA3AF] flex items-center justify-center">
                   <Icon name="more_time" size={24} />
                 </div>
                 <p className="font-semibold text-[15px] text-[#111827]">
-                  Không có dữ liệu chấm công cho tháng {selectedMonth}/{selectedYear}
+                  Không có bản ghi chấm công nào phù hợp với bộ lọc
                 </p>
               </div>
             )}
 
-            {!isLoading && history?.items && history.items.length > 0 && (
+            {!isLoading && filteredItems.length > 0 && (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-[#FAFAFA] border-b border-[#E5E7EB] text-[12px] font-semibold text-[#6B7280] uppercase tracking-wider h-11">
+                      <th className="px-6 py-3">Nhân sự</th>
                       <th className="px-6 py-3">Ngày</th>
                       <th className="px-6 py-3">Ca làm việc</th>
                       <th className="px-6 py-3">Giờ vào</th>
@@ -963,10 +1069,20 @@ export default function AttendancePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E5E7EB] text-[13px] text-[#111827]">
-                    {history.items.map((row) => {
+                    {filteredItems.map((row) => {
                       const badge = STATUS_BADGES[row.status] || STATUS_BADGES.Present;
                       return (
                         <tr key={row.id} className="hover:bg-[#F9FAFB] transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-[#111827]">
+                                {row.employeeName}
+                              </span>
+                              <span className="text-[11px] font-mono text-[#6B7280]">
+                                {row.employeeCode}
+                              </span>
+                            </div>
+                          </td>
                           <td className="px-6 py-4 font-mono font-bold text-[#111827]">
                             {formatDateVN(row.attendanceDate)}
                           </td>
@@ -1004,7 +1120,7 @@ export default function AttendancePage() {
                               </span>
                             )}
                             {row.lateMinutes === 0 && row.earlyLeaveMinutes === 0 && (
-                              <span className="text-[12px] text-[#059669]">Chuẩn giờ</span>
+                              <span className="text-[12px] text-[#059669]">Đúng giờ</span>
                             )}
                           </td>
                           <td className="px-6 py-4">

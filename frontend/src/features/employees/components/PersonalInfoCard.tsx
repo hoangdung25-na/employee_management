@@ -40,7 +40,7 @@ export function PersonalInfoCard({ employee, className = "" }: PersonalInfoCardP
 
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[12px] font-medium bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
           <Icon name="verified" size={14} className="text-[#059669]" />
-          <span>Đã xác thực eKYC</span>
+          <span>Đã xác minh</span>
         </span>
       </div>
 
@@ -61,9 +61,9 @@ export function PersonalInfoCard({ employee, className = "" }: PersonalInfoCardP
             Giới tính
           </span>
           <p className="text-[14px] leading-[22px] font-semibold text-[#111827]">
-            {employee.gender === "Male"
+            {employee.gender === "Nam" || employee.gender === "Male"
               ? "Nam"
-              : employee.gender === "Female"
+              : employee.gender === "Nữ" || employee.gender === "Female"
               ? "Nữ"
               : "Khác"}
           </p>
@@ -122,9 +122,7 @@ export function PersonalInfoCard({ employee, className = "" }: PersonalInfoCardP
               className="text-[#7C3AED] mt-0.5 shrink-0"
             />
             <span>
-              {employee.address
-                ? `Hiện đang cư trú: ${employee.address}`
-                : "Chưa cập nhật địa chỉ hiện tại"}
+              {employee.address || "Chưa cập nhật địa chỉ hiện tại"}
             </span>
           </p>
         </div>
@@ -132,4 +130,3 @@ export function PersonalInfoCard({ employee, className = "" }: PersonalInfoCardP
     </section>
   );
 }
-

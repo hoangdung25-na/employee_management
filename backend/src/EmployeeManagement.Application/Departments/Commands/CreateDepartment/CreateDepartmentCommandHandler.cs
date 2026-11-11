@@ -2,6 +2,7 @@ using EmployeeManagement.Application.Common.Exceptions;
 using EmployeeManagement.Application.Departments.DTOs;
 using EmployeeManagement.Application.Interfaces;
 using EmployeeManagement.Domain.Departments.Entities;
+using EmployeeManagement.Domain.Employees.Entities;
 using EmployeeManagement.Domain.Employees.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -51,20 +52,20 @@ public class CreateDepartmentCommandHandler : IRequestHandler<CreateDepartmentCo
             }
         }
 
-        // 3. Validate ManagerId if provided
+        // 3. Validate & Synchronize ManagerId if provided
         string? managerName = null;
+        Employee? managerEmployee = null;
         if (request.ManagerId.HasValue)
         {
-            managerName = await _context.Employees
-                .AsNoTracking()
-                .Where(e => e.Id == request.ManagerId.Value && e.Status != EmployeeStatus.Terminated)
-                .Select(e => e.FullName)
-                .FirstOrDefaultAsync(cancellationToken);
+            managerEmployee = await _context.Employees
+                .Include(e => e.Position)
+                .FirstOrDefaultAsync(e => e.Id == request.ManagerId.Value && e.Status != EmployeeStatus.Terminated, cancellationToken);
 
-            if (managerName is null)
+            if (managerEmployee is null)
             {
                 throw new BadRequestException("Nhân sự được chọn làm Trưởng phòng không tồn tại hoặc đã thôi việc.");
             }
+            managerName = managerEmployee.FullName;
         }
 
         var department = new Department
@@ -79,6 +80,22 @@ public class CreateDepartmentCommandHandler : IRequestHandler<CreateDepartmentCo
             IsDeleted = false,
             CreatedAt = DateTime.UtcNow
         };
+
+        if (managerEmployee != null)
+        {
+            managerEmployee.DepartmentId = department.Id;
+
+            var highestDirector = await _context.Employees
+                .Include(e => e.Position)
+                .Where(e => !e.IsDeleted && e.Position.JobLevel == 1)
+                .OrderBy(e => e.HireDate)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (highestDirector != null && managerEmployee.Id != highestDirector.Id)
+            {
+                managerEmployee.DirectManagerId = highestDirector.Id;
+            }
+        }
 
         await _context.Departments.AddAsync(department, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);

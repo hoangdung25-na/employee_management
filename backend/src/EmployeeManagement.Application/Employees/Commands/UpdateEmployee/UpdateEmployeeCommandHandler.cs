@@ -14,10 +14,14 @@ namespace EmployeeManagement.Application.Employees.Commands.UpdateEmployee;
 public class UpdateEmployeeCommandHandler : IRequestHandler<UpdateEmployeeCommand, EmployeeDetailDto>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IAuthCache _authCache;
 
-    public UpdateEmployeeCommandHandler(IApplicationDbContext context)
+    public UpdateEmployeeCommandHandler(
+        IApplicationDbContext context,
+        IAuthCache authCache)
     {
         _context = context;
+        _authCache = authCache;
     }
 
     public async Task<EmployeeDetailDto> Handle(
@@ -82,9 +86,42 @@ public class UpdateEmployeeCommandHandler : IRequestHandler<UpdateEmployeeComman
             throw new NotFoundException("Chức danh", request.PositionId);
         }
 
-        // Validate DirectManagerId
+        // Validate DirectManagerId & Cấp bậc quản lý
         string? directManagerName = null;
-        if (request.DirectManagerId.HasValue)
+        var targetPosition = await _context.Positions.FirstOrDefaultAsync(p => p.Id == request.PositionId, cancellationToken);
+        var isExecutive = targetPosition != null && targetPosition.JobLevel == 1;
+
+        // Kiểm tra xem nhân sự này có phải Trưởng phòng của phòng ban hay không
+        var isDeptHead = await _context.Departments
+            .AnyAsync(d => d.Id == request.DepartmentId && d.ManagerId == employee.Id, cancellationToken);
+
+        if (isExecutive)
+        {
+            // Ban Giám đốc không có sếp trực tiếp (Báo cáo HĐQT)
+            employee.DirectManagerId = null;
+            directManagerName = null;
+        }
+        else if (isDeptHead)
+        {
+            // Trưởng phòng mặc định báo cáo trực tiếp cho Giám đốc điều hành cấp cao nhất (CEO / JobLevel == 1)
+            var highestDirector = await _context.Employees
+                .Include(e => e.Position)
+                .Where(e => !e.IsDeleted && e.Position.JobLevel == 1)
+                .OrderBy(e => e.HireDate)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (highestDirector != null && employee.Id != highestDirector.Id)
+            {
+                employee.DirectManagerId = highestDirector.Id;
+                directManagerName = highestDirector.FullName;
+            }
+            else
+            {
+                employee.DirectManagerId = null;
+                directManagerName = null;
+            }
+        }
+        else if (request.DirectManagerId.HasValue)
         {
             directManagerName = await _context.Employees
                 .AsNoTracking()
@@ -96,6 +133,11 @@ public class UpdateEmployeeCommandHandler : IRequestHandler<UpdateEmployeeComman
             {
                 throw new BadRequestException("Quản lý trực tiếp được chọn không tồn tại hoặc đã thôi việc.");
             }
+            employee.DirectManagerId = request.DirectManagerId;
+        }
+        else
+        {
+            employee.DirectManagerId = null;
         }
 
         employee.FullName = request.FullName.Trim();
@@ -108,17 +150,48 @@ public class UpdateEmployeeCommandHandler : IRequestHandler<UpdateEmployeeComman
         employee.ProbationEndDate = request.ProbationEndDate ?? employee.ProbationEndDate;
         employee.DepartmentId = request.DepartmentId;
         employee.PositionId = request.PositionId;
-        employee.DirectManagerId = request.DirectManagerId;
+        // employee.DirectManagerId is already assigned according to hierarchy rules above
         employee.BaseSalary = request.BaseSalary;
         employee.TaxCode = request.TaxCode is not null ? (string.IsNullOrWhiteSpace(request.TaxCode) ? null : request.TaxCode.Trim()) : employee.TaxCode;
         employee.SocialInsuranceNumber = request.SocialInsuranceNumber is not null ? (string.IsNullOrWhiteSpace(request.SocialInsuranceNumber) ? null : request.SocialInsuranceNumber.Trim()) : employee.SocialInsuranceNumber;
         employee.BankAccountNumber = request.BankAccountNumber is not null ? (string.IsNullOrWhiteSpace(request.BankAccountNumber) ? null : request.BankAccountNumber.Trim()) : employee.BankAccountNumber;
         employee.BankName = request.BankName is not null ? (string.IsNullOrWhiteSpace(request.BankName) ? null : request.BankName.Trim()) : employee.BankName;
         employee.AvatarUrl = string.IsNullOrWhiteSpace(request.AvatarUrl) ? null : request.AvatarUrl.Trim();
-        employee.Status = Enum.Parse<EmployeeStatus>(request.Status, ignoreCase: true);
+        var newStatus = Enum.Parse<EmployeeStatus>(request.Status, ignoreCase: true);
+        var previousStatus = employee.Status;
+        employee.Status = newStatus;
         employee.UpdatedAt = DateTime.UtcNow;
 
+        // Synchronize linked User account status when Employee status changes
+        var linkedUser = await _context.Users
+            .FirstOrDefaultAsync(u => u.EmployeeId == employee.Id, cancellationToken);
+
+        if (linkedUser is not null)
+        {
+            if (newStatus == EmployeeStatus.Suspended || newStatus == EmployeeStatus.Terminated)
+            {
+                linkedUser.IsActive = false;
+                linkedUser.RefreshToken = null;
+                linkedUser.RefreshTokenExpiryTime = null;
+                linkedUser.UpdatedAt = DateTime.UtcNow;
+            }
+            else if ((previousStatus == EmployeeStatus.Suspended || !linkedUser.IsActive) &&
+                     (newStatus == EmployeeStatus.Active || newStatus == EmployeeStatus.Probation))
+            {
+                linkedUser.IsActive = true;
+                linkedUser.IsLocked = false;
+                linkedUser.LockedUntil = null;
+                linkedUser.FailedLoginAttempts = 0;
+                linkedUser.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
+
+        if (linkedUser is not null)
+        {
+            _authCache.InvalidateUser(linkedUser.Id);
+        }
 
         return new EmployeeDetailDto(
             employee.Id,
@@ -149,7 +222,8 @@ public class UpdateEmployeeCommandHandler : IRequestHandler<UpdateEmployeeComman
             employee.TerminationDate,
             employee.TerminationReason,
             employee.CreatedAt,
-            employee.UpdatedAt);
+            employee.UpdatedAt,
+            isDeptHead);
     }
 }
 

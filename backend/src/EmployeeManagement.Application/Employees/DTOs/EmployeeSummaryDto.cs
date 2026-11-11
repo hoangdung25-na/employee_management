@@ -20,5 +20,6 @@ public record EmployeeSummaryDto(
     decimal BaseSalary,
     string? AvatarUrl,
     DateOnly HireDate,
-    string Status
+    string Status,
+    bool IsDepartmentHead = false
 );

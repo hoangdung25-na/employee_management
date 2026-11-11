@@ -85,7 +85,8 @@ public class GetEmployeeByIdQueryHandler : IRequestHandler<GetEmployeeByIdQuery,
                 e.TerminationDate,
                 e.TerminationReason,
                 e.CreatedAt,
-                e.UpdatedAt))
+                e.UpdatedAt,
+                e.Department.ManagerId == e.Id))
             .FirstOrDefaultAsync(cancellationToken);
 
         if (employee is null)

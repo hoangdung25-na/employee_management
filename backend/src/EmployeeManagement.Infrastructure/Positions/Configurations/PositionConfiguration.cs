@@ -34,6 +34,10 @@ public class PositionConfiguration : IEntityTypeConfiguration<Position>
             .HasDefaultValue(true)
             .IsRequired();
 
+        builder.Property(p => p.JobLevel)
+            .HasDefaultValue(3)
+            .IsRequired();
+
         builder.HasIndex(p => p.PositionCode).IsUnique();
     }
 }

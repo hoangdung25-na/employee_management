@@ -51,7 +51,7 @@ export function JobInfoCard({ employee, className = "" }: JobInfoCardProps) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 pt-1">
         <div>
           <span className="text-[12px] leading-[18px] text-[#6B7280] block mb-0.5">
-            Chức danh chuyên môn
+            Chức vụ
           </span>
           <p className="text-[14px] leading-[22px] font-semibold text-[#111827]">
             {employee.positionName}
@@ -60,7 +60,7 @@ export function JobInfoCard({ employee, className = "" }: JobInfoCardProps) {
 
         <div>
           <span className="text-[12px] leading-[18px] text-[#6B7280] block mb-0.5">
-            Khối / Phòng ban
+            Phòng ban
           </span>
           <p className="text-[14px] leading-[22px] font-semibold text-[#111827]">
             {employee.departmentName}
@@ -73,14 +73,14 @@ export function JobInfoCard({ employee, className = "" }: JobInfoCardProps) {
             <div className="w-10 h-10 rounded-full bg-[#EDE9FE] border border-[#DDD6FE] text-[#7C3AED] font-heading font-bold text-[14px] flex items-center justify-center shrink-0">
               {employee.directManagerName
                 ? getInitials(employee.directManagerName)
-                : "HR"}
+                : "QL"}
             </div>
             <div>
               <span className="text-[11px] leading-[16px] text-[#6B7280] block">
-                Quản lý trực tiếp (Reporting Line)
+                Quản lý trực tiếp
               </span>
               <span className="text-[14px] font-semibold text-[#111827]">
-                {employee.directManagerName || "Ban Giám đốc Điều hành"}
+                {employee.directManagerName || "Ban Giám đốc"}
               </span>
             </div>
           </div>
@@ -108,15 +108,9 @@ export function JobInfoCard({ employee, className = "" }: JobInfoCardProps) {
           <span className="text-[12px] leading-[18px] text-[#6B7280] block mb-0.5">
             Thâm niên công tác
           </span>
-          <div className="flex items-center gap-2">
-            <span className="text-[14px] leading-[22px] font-semibold text-[#111827]">
-              {tenure}
-            </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-[#EDE9FE] text-[#7C3AED] font-semibold font-mono">
-              <Icon name="military_tech" size={13} />
-              Gắn bó xuất sắc
-            </span>
-          </div>
+          <span className="text-[14px] leading-[22px] font-semibold text-[#111827]">
+            {tenure}
+          </span>
         </div>
 
         <div>
@@ -126,9 +120,6 @@ export function JobInfoCard({ employee, className = "" }: JobInfoCardProps) {
           <p className="text-[14px] leading-[22px] font-medium text-[#111827]">
             Hợp đồng Lao động Không xác định thời hạn
           </p>
-          <span className="text-[11px] text-[#9CA3AF]">
-            (Chính sách lưu trữ hợp đồng số hóa eContract)
-          </span>
         </div>
 
         <div>
@@ -136,14 +127,13 @@ export function JobInfoCard({ employee, className = "" }: JobInfoCardProps) {
             Địa điểm & Ca làm việc
           </span>
           <p className="text-[14px] leading-[22px] font-medium text-[#111827]">
-            Trụ sở chính Sonatus
+            Văn phòng Trụ sở chính
           </p>
           <span className="text-[11px] text-[#9CA3AF]">
-            Thứ 2 - Thứ 6 (8:30 - 17:30) • Ca Hành chính
+            Thứ 2 - Thứ 6 (8:30 - 17:30) • Giờ hành chính
           </span>
         </div>
       </div>
     </section>
   );
 }
-

@@ -25,4 +25,7 @@ public class Department : BaseEntity
 
     // Affiliated employees
     public ICollection<Employee> Employees { get; set; } = new List<Employee>();
+
+    // Authorized positions mapped to this department
+    public ICollection<DepartmentPosition> DepartmentPositions { get; set; } = new List<DepartmentPosition>();
 }

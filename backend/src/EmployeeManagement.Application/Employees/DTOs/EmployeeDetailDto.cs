@@ -33,6 +33,7 @@ public record EmployeeDetailDto(
     DateOnly? TerminationDate,
     string? TerminationReason,
     DateTime CreatedAt,
-    DateTime? UpdatedAt
+    DateTime? UpdatedAt,
+    bool IsDepartmentHead = false
 );
 

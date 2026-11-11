@@ -34,3 +34,21 @@ export interface UpdateTaskStatusPayload {
   notes?: string | null;
 }
 
+export interface CreateOnboardingTaskPayload {
+  employeeId: string;
+  processType: ProcessType;
+  taskName: string;
+  assignedRole: AssignedRole;
+  dueDate: string;
+  notes?: string | null;
+  assignedToEmployeeId?: string | null;
+}
+
+export interface UpdateOnboardingTaskPayload {
+  taskName: string;
+  assignedRole: AssignedRole;
+  dueDate: string;
+  status: TaskStatus;
+  notes?: string | null;
+  assignedToEmployeeId?: string | null;
+}

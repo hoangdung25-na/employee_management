@@ -8,6 +8,7 @@ public record PositionResponseDto(
     string PositionCode,
     string PositionName,
     string? Description,
-    bool IsActive
+    bool IsActive,
+    int JobLevel = 3
 );
 

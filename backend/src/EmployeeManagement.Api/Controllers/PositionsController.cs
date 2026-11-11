@@ -25,14 +25,16 @@ public class PositionsController : ControllerBase
 
     /// <summary>
     /// Retrieves the catalog of job positions for dropdown selection and organizational reference.
+    /// Optionally filtered by departmentId to enforce Department-Position mapping constraints.
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<PositionResponseDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPositions(
         [FromQuery] bool includeInactive = false,
+        [FromQuery] Guid? departmentId = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(new GetPositionsQuery(includeInactive), cancellationToken);
+        var result = await _sender.Send(new GetPositionsQuery(includeInactive, departmentId), cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<PositionResponseDto>>.SuccessResult(result, "Lấy danh mục chức danh thành công."));
     }
 }

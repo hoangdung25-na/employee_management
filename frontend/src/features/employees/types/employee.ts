@@ -1,17 +1,11 @@
-/**
- * Trạng thái nhân sự khớp với Enum `EmployeeStatus` ở tầng Domain (.NET 8)
- */
+
 export type EmployeeStatus =
   | "Probation"
   | "Active"
   | "Suspended"
   | "Terminated";
 
-/**
- * DTO Tóm tắt hồ sơ nhân sự khớp 100% với `EmployeeSummaryDto.cs` ở Backend.
- * - Golden Rule #1: `id`, `departmentId`, `positionId` là chuỗi GUID (`UNIQUEIDENTIFIER`).
- * - Golden Rule #2: Song hành `id` (kỹ thuật) và `employeeCode` (mã nghiệp vụ `EMP-xxxxx`).
- */
+
 export interface EmployeeSummary {
   id: string;
   employeeCode: string;
@@ -29,11 +23,10 @@ export interface EmployeeSummary {
   avatarUrl?: string | null;
   hireDate: string;
   status: EmployeeStatus | string;
+  isDepartmentHead?: boolean;
 }
 
-/**
- * DTO Chi tiết hồ sơ nhân sự khớp 100% với `EmployeeDetailDto.cs` ở Backend (`GET /api/employees/{id:guid}`).
- */
+
 export interface EmployeeDetail {
   id: string;
   employeeCode: string;
@@ -64,6 +57,7 @@ export interface EmployeeDetail {
   terminationReason?: string | null;
   createdAt: string;
   updatedAt?: string | null;
+  isDepartmentHead?: boolean;
 }
 
 /**
@@ -92,9 +86,7 @@ export interface CreateEmployeePayload {
   bankName?: string | null;
 }
 
-/**
- * Payload cập nhật hồ sơ thành viên (`PUT /api/employees/{id:guid}`)
- */
+
 export interface UpdateEmployeePayload {
   fullName: string;
   dateOfBirth: string;
@@ -117,17 +109,13 @@ export interface UpdateEmployeePayload {
   bankName?: string | null;
 }
 
-/**
- * Payload xử lý thủ tục thôi việc (`DELETE /api/employees/{id:guid}`)
- */
+
 export interface TerminateEmployeePayload {
   terminationDate: string;
   terminationReason: string;
 }
 
-/**
- * Tham số truy vấn danh sách nhân sự khớp 100% với `GetEmployeesQuery.cs` ở Backend.
- */
+
 export interface EmployeeFilterParams {
   keyword?: string;
   departmentId?: string;
@@ -136,4 +124,28 @@ export interface EmployeeFilterParams {
   pageSize?: number;
   sortBy?: "FullName" | "BaseSalary" | "EmployeeCode" | "HireDate";
   sortOrder?: "asc" | "desc";
+}
+
+
+export interface ManagerOption {
+  id: string;
+  employeeCode: string;
+  fullName: string;
+  positionName: string;
+  departmentName: string;
+  jobLevel: number;
+  isDepartmentHead: boolean;
+}
+
+/**
+ * Lựa chọn Quản lý trực tiếp phân cấp theo phòng ban & JobLevel (`GET /api/employees/managers`)
+ */
+export interface ManagerOption {
+  id: string;
+  employeeCode: string;
+  fullName: string;
+  positionName: string;
+  departmentName: string;
+  jobLevel: number;
+  isDepartmentHead: boolean;
 }

@@ -18,7 +18,6 @@ interface EmployeeTableProps {
   onEditEmployee?: (employee: EmployeeSummary) => void;
 }
 
-
 export function EmployeeTable({
   employees,
   isLoading,
@@ -46,20 +45,19 @@ export function EmployeeTable({
     setRevealAllSalaries((prev) => !prev);
   };
 
-  // Trạng thái Skeleton Loading (HRFlow Rule #8)
   if (isLoading) {
     return (
       <div className="w-full overflow-x-auto">
         <table className="w-full min-w-[960px] text-left border-collapse">
           <thead>
             <tr className="border-b border-[#E5E7EB] bg-[#FAFAFA] text-[12px] leading-[18px] font-semibold text-[#6B7280] uppercase tracking-wider whitespace-nowrap">
-              <th className="py-3 px-4">Thành viên đội ngũ</th>
+              <th className="py-3 px-4">Nhân viên</th>
               <th className="py-3 px-4">Phòng ban & Chức vụ</th>
               <th className="py-3 px-4">Liên hệ công việc</th>
               <th className="py-3 px-4">Ngày gia nhập</th>
               <th className="py-3 px-4">Lương cơ bản</th>
               <th className="py-3 px-4">Trạng thái</th>
-              <th className="py-3 px-4 text-right">Hành động</th>
+              <th className="py-3 px-4 text-right">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#E5E7EB] bg-white">
@@ -109,7 +107,6 @@ export function EmployeeTable({
     );
   }
 
-  // Trạng thái Empty State thân thiện (HRFlow Rule #8 & #1)
   if (employees.length === 0) {
     return (
       <div className="py-16 px-6 text-center bg-white">
@@ -117,11 +114,10 @@ export function EmployeeTable({
           0
         </div>
         <h3 className="font-heading text-[20px] leading-[28px] font-semibold text-[#111827] mb-1">
-          Chưa tìm thấy thành viên phù hợp
+          Không tìm thấy nhân sự phù hợp
         </h3>
         <p className="text-[14px] leading-[22px] text-[#6B7280] max-w-md mx-auto">
-          Không có hồ sơ thành viên đội ngũ nào khớp với bộ lọc hiện tại. Hãy thử
-          thay đổi từ khóa tìm kiếm hoặc trạng thái làm việc.
+          Không có hồ sơ nhân sự nào khớp với bộ lọc hiện tại. Hãy thử thay đổi từ khóa tìm kiếm hoặc trạng thái làm việc.
         </p>
       </div>
     );
@@ -132,29 +128,31 @@ export function EmployeeTable({
       <table className="w-full min-w-[960px] text-left border-collapse">
         <thead>
           <tr className="border-b border-[#E5E7EB] bg-[#FAFAFA] text-[12px] leading-[18px] font-semibold text-[#6B7280] uppercase tracking-wider whitespace-nowrap">
-            <th className="py-3 px-4 w-[23%]">Thành viên đội ngũ</th>
-            <th className="py-3 px-4 w-[18%]">Phòng ban & Chức vụ</th>
+            <th className="py-3 px-4 w-[22%]">Nhân viên</th>
+            <th className="py-3 px-4 w-[19%]">Phòng ban & Chức vụ</th>
             <th className="py-3 px-4 w-[20%]">Liên hệ công việc</th>
             <th className="py-3 px-4 w-[11%]">Ngày gia nhập</th>
             <th className="py-3 px-4 w-[14%]">
               <div className="inline-flex items-center gap-2">
                 <span>Lương cơ bản</span>
-                <button
-                  type="button"
-                  onClick={toggleRevealAll}
-                  title={
-                    revealAllSalaries
-                      ? "Ẩn toàn bộ mức lương"
-                      : "Hiển thị toàn bộ mức lương (Chỉ dành cho HR/Admin)"
-                  }
-                  className="px-2 py-0.5 rounded-full text-[11px] leading-[16px] font-medium normal-case whitespace-nowrap bg-[#F5F3FF] text-[#7C3AED] border border-[#7C3AED] hover:bg-[#EDE9FE] transition-colors cursor-pointer"
-                >
-                  {revealAllSalaries ? "Ẩn tất cả" : "Hiện tất cả"}
-                </button>
+                {employees.filter((e) => e.baseSalary > 0).length > 1 && (
+                  <button
+                    type="button"
+                    onClick={toggleRevealAll}
+                    title={
+                      revealAllSalaries
+                        ? "Ẩn toàn bộ mức lương"
+                        : "Hiển thị toàn bộ mức lương"
+                    }
+                    className="px-2 py-0.5 rounded-full text-[11px] leading-[16px] font-medium normal-case whitespace-nowrap bg-[#F5F3FF] text-[#7C3AED] border border-[#7C3AED] hover:bg-[#EDE9FE] transition-colors cursor-pointer"
+                  >
+                    {revealAllSalaries ? "Ẩn tất cả" : "Hiện tất cả"}
+                  </button>
+                )}
               </div>
             </th>
             <th className="py-3 px-4 w-[8%]">Trạng thái</th>
-            <th className="py-3 px-4 w-[6%] text-right">Hành động</th>
+            <th className="py-3 px-4 w-[6%] text-right">Thao tác</th>
           </tr>
         </thead>
 
@@ -173,13 +171,15 @@ export function EmployeeTable({
                   setSelectedId(emp.id === selectedId ? null : emp.id);
                   onSelectEmployee?.(emp);
                 }}
-                className={`h-[60px] transition-colors cursor-pointer ${isSelected ? "bg-[#EDE9FE]" : "hover:bg-[#F5F3FF]"
-                  }`}
+                className={`h-[60px] transition-colors cursor-pointer ${
+                  isSelected ? "bg-[#EDE9FE]" : "hover:bg-[#F5F3FF]"
+                }`}
               >
-                {/* Cột 1: Avatar + Họ tên + Mã NV (Thẳng hàng 2 dòng gọn gàng) */}
+                {/* Cột 1: Avatar + Họ tên + Mã NV */}
                 <td
-                  className={`py-2.5 px-4 align-middle whitespace-nowrap ${isSelected ? "shadow-[inset_3px_0_0_0_#7C3AED]" : ""
-                    }`}
+                  className={`py-2.5 px-4 align-middle whitespace-nowrap ${
+                    isSelected ? "shadow-[inset_3px_0_0_0_#7C3AED]" : ""
+                  }`}
                 >
                   <div className="flex items-center gap-3">
                     {showAvatarImage ? (
@@ -212,32 +212,30 @@ export function EmployeeTable({
                         <span className="font-mono text-[12px] text-[#7C3AED] font-medium whitespace-nowrap">
                           {emp.employeeCode}
                         </span>
-                        <span className="text-[#D1D5DB]">•</span>
-                        <span
-                          className="font-mono text-[11px] text-[#9CA3AF] whitespace-nowrap"
-                          title={`GUID: ${emp.id}`}
-                        >
-                          #{emp.id.slice(0, 8)}
-                        </span>
                       </div>
                     </div>
                   </div>
                 </td>
 
-                {/* Cột 2: Phòng ban & Chức vụ (Đúng 2 dòng thẳng tắp với Cột 1, 3, 4) */}
+                {/* Cột 2: Phòng ban & Chức vụ */}
                 <td className="py-2.5 px-4 align-middle whitespace-nowrap">
                   <div className="flex items-center gap-1.5 leading-[20px]">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#0D9488] shrink-0" />
                     <span className="font-medium text-[#111827]">
                       {emp.departmentName}
                     </span>
+                    {emp.isDepartmentHead && (
+                      <span className="text-[10px] font-semibold text-[#7C3AED] bg-[#F5F3FF] px-1.5 py-0.5 rounded border border-[#DDD6FE]">
+                        ⭐ Trưởng bộ phận
+                      </span>
+                    )}
                   </div>
                   <p className="text-[12px] leading-[18px] text-[#6B7280] mt-0.5 pl-3">
                     {emp.positionName}
                   </p>
                 </td>
 
-                {/* Cột 3: Liên hệ công việc (2 dòng: Email & SĐT) */}
+                {/* Cột 3: Liên hệ công việc */}
                 <td className="py-2.5 px-4 align-middle whitespace-nowrap">
                   <p className="text-[#111827] leading-[20px]">
                     {emp.workEmail}
@@ -247,7 +245,7 @@ export function EmployeeTable({
                   </p>
                 </td>
 
-                {/* Cột 4: Ngày gia nhập & Ngày sinh (2 dòng đồng bộ) */}
+                {/* Cột 4: Ngày gia nhập & Ngày sinh */}
                 <td className="py-2.5 px-4 align-middle whitespace-nowrap">
                   <p className="text-[#111827] leading-[20px] font-medium">
                     {formatDateVN(emp.hireDate)}
@@ -257,30 +255,39 @@ export function EmployeeTable({
                   </p>
                 </td>
 
-                {/* Cột 5: Lương cơ bản (Không bao giờ bị rớt chữ ₫ xuống dòng) */}
+                {/* Cột 5: Lương cơ bản */}
                 <td className="py-2.5 px-4 align-middle whitespace-nowrap">
                   <div className="inline-flex items-center gap-1.5">
-                    {isSalaryVisible ? (
+                    {emp.baseSalary > 0 && isSalaryVisible ? (
                       <span className="font-mono text-[13px] leading-[20px] font-medium text-[#0D9488] bg-[#F0FDFA] border border-[#CCFBF1] px-2.5 py-0.5 rounded-[4px] whitespace-nowrap">
                         {formatCurrencyVND(emp.baseSalary)}
                       </span>
                     ) : (
-                      <span className="font-mono text-[13px] leading-[20px] text-[#9CA3AF] bg-[#F9FAFB] border border-[#E5E7EB] px-2.5 py-0.5 rounded-[4px] select-none whitespace-nowrap">
+                      <span
+                        className="font-mono text-[13px] leading-[20px] text-[#9CA3AF] bg-[#F9FAFB] border border-[#E5E7EB] px-2.5 py-0.5 rounded-[4px] select-none whitespace-nowrap"
+                        title={
+                          emp.baseSalary === 0
+                            ? "Không có quyền xem mức lương"
+                            : undefined
+                        }
+                      >
                         •••••••• ₫
                       </span>
                     )}
-                    <button
-                      type="button"
-                      onClick={(e) => toggleSalaryReveal(emp.id, e)}
-                      className="px-2 py-0.5 rounded-[4px] text-[12px] leading-[18px] font-medium text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#7C3AED] transition-colors cursor-pointer whitespace-nowrap"
-                      title={
-                        isSalaryVisible
-                          ? "Ẩn mức lương"
-                          : "Nhấn để xem mức lương cơ bản"
-                      }
-                    >
-                      {isSalaryVisible ? "Ẩn" : "Xem"}
-                    </button>
+                    {emp.baseSalary > 0 && (
+                      <button
+                        type="button"
+                        onClick={(e) => toggleSalaryReveal(emp.id, e)}
+                        className="px-2 py-0.5 rounded-[4px] text-[12px] leading-[18px] font-medium text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#7C3AED] transition-colors cursor-pointer whitespace-nowrap"
+                        title={
+                          isSalaryVisible
+                            ? "Ẩn mức lương"
+                            : "Nhấn để xem mức lương cơ bản"
+                        }
+                      >
+                        {isSalaryVisible ? "Ẩn" : "Xem"}
+                      </button>
+                    )}
                   </div>
                 </td>
 
@@ -289,7 +296,7 @@ export function EmployeeTable({
                   <StatusBadge status={emp.status} />
                 </td>
 
-                {/* Cột 7: Hành động */}
+                {/* Cột 7: Thao tác */}
                 <td
                   className="py-2.5 px-4 align-middle text-right whitespace-nowrap"
                   onClick={(e) => e.stopPropagation()}
@@ -301,14 +308,16 @@ export function EmployeeTable({
                     >
                       Hồ sơ
                     </Link>
-                    <button
-                      type="button"
-                      onClick={() => onEditEmployee?.(emp)}
-                      className="h-7 px-2.5 inline-flex items-center justify-center rounded-[6px] text-[12px] font-medium text-[#7C3AED] hover:bg-[#F5F3FF] transition-colors cursor-pointer"
-                      title="Chỉnh sửa hồ sơ thành viên"
-                    >
-                      Sửa
-                    </button>
+                    {onEditEmployee && (
+                      <button
+                        type="button"
+                        onClick={() => onEditEmployee(emp)}
+                        className="h-7 px-2.5 inline-flex items-center justify-center rounded-[6px] text-[12px] font-medium text-[#7C3AED] hover:bg-[#F5F3FF] transition-colors cursor-pointer"
+                        title="Chỉnh sửa hồ sơ nhân sự"
+                      >
+                        Sửa
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

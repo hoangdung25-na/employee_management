@@ -98,7 +98,8 @@ public class GetEmployeesQueryHandler : IRequestHandler<GetEmployeesQuery, Paged
                 canViewAllSalaries || (currentEmployeeId.HasValue && e.Id == currentEmployeeId.Value) ? e.BaseSalary : 0m,
                 e.AvatarUrl,
                 e.HireDate,
-                e.Status.ToString()
+                e.Status.ToString(),
+                e.Department.ManagerId == e.Id
             ))
             .ToListAsync(cancellationToken);
 

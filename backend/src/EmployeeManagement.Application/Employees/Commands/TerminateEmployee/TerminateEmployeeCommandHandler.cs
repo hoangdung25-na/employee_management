@@ -17,10 +17,14 @@ namespace EmployeeManagement.Application.Employees.Commands.TerminateEmployee;
 public class TerminateEmployeeCommandHandler : IRequestHandler<TerminateEmployeeCommand, bool>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IAuthCache _authCache;
 
-    public TerminateEmployeeCommandHandler(IApplicationDbContext context)
+    public TerminateEmployeeCommandHandler(
+        IApplicationDbContext context,
+        IAuthCache authCache)
     {
         _context = context;
+        _authCache = authCache;
     }
 
     public async Task<bool> Handle(
@@ -121,6 +125,12 @@ public class TerminateEmployeeCommandHandler : IRequestHandler<TerminateEmployee
 
             await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+
+            if (linkedUser is not null)
+            {
+                // Immediately invalidate AuthCache so terminated employee loses all permissions at once
+                _authCache.InvalidateUser(linkedUser.Id);
+            }
         });
 
         return true;

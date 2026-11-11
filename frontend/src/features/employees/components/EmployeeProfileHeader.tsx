@@ -46,9 +46,11 @@ export function EmployeeProfileHeader({
   const isTerminated = employee.status === "Terminated";
 
   return (
-    <div className="bg-white border border-[#E5E7EB] rounded-[16px] shadow-xs p-6 relative overflow-hidden">
+    <div className="bg-white border border-[#E5E7EB] rounded-[16px] shadow-xs p-6 relative">
       {/* Ambient decorative gradient splash */}
-      <div className="absolute -right-24 -top-24 w-80 h-80 bg-[#7C3AED]/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute inset-0 overflow-hidden rounded-[16px] pointer-events-none">
+        <div className="absolute -right-24 -top-24 w-80 h-80 bg-[#7C3AED]/5 rounded-full blur-3xl" />
+      </div>
 
       <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6 relative z-10">
         {/* Left Profile Details Block */}
@@ -96,10 +98,6 @@ export function EmployeeProfileHeader({
               </span>
 
               <StatusBadge status={employee.status} />
-
-              <span className="px-2.5 py-0.5 rounded-full text-[12px] leading-[18px] font-medium bg-[#F5F3FF] text-[#7C3AED] border border-[#DDD6FE]">
-                {employee.positionName || "Thành viên chính thức"}
-              </span>
             </div>
 
             <p className="text-[14px] leading-[22px] text-[#6B7280] font-medium">
@@ -191,7 +189,7 @@ export function EmployeeProfileHeader({
                   className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-[#F5F3FF] hover:text-[#7C3AED] transition-colors text-left cursor-pointer"
                 >
                   <Icon name="lock_reset" size={16} className="text-[#6B7280]" />
-                  <span>Cấp lại mật khẩu ESS</span>
+                  <span>Cấp lại mật khẩu</span>
                 </button>
 
                 {canTerminate && !isTerminated && (
@@ -218,4 +216,3 @@ export function EmployeeProfileHeader({
     </div>
   );
 }
-

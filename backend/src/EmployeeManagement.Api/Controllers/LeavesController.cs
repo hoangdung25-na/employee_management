@@ -1,3 +1,4 @@
+using EmployeeManagement.Api.Authorization;
 using EmployeeManagement.Application.Common;
 using EmployeeManagement.Application.Leaves.Commands.CancelLeaveRequest;
 using EmployeeManagement.Application.Leaves.Commands.CreateLeaveRequest;
@@ -101,7 +102,7 @@ public class LeavesController : ControllerBase
     /// Accessible by Manager or HR with Leave.Approve permission.
     /// </summary>
     [HttpPut("requests/{id:guid}/review")]
-    [Authorize(Policy = UserConsts.Permissions.LeaveApprove)]
+    [RequirePermission(PermissionNames.Leaves.Approve)]
     [ProducesResponseType(typeof(ApiResponse<LeaveRequestDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]

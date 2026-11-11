@@ -23,8 +23,9 @@ import {
 import { TimesheetEntryModal } from "@/features/timesheets/components/TimesheetEntryModal";
 import { TimesheetReviewModal } from "@/features/timesheets/components/TimesheetReviewModal";
 import { TimesheetWeeklyGrid } from "@/features/timesheets/components/TimesheetWeeklyGrid";
+import { getEmployees } from "@/features/employees/services/employeeService";
+import { EmployeeSummary } from "@/features/employees/types/employee";
 
-// Helper to get Monday of the week
 function getMonday(date: Date): Date {
   const d = new Date(date);
   const day = d.getDay();
@@ -92,11 +93,9 @@ export default function TimesheetsPage() {
     hasRole("HR_MANAGER") ||
     hasRole("MANAGER");
 
-  // Date State: Reference Monday of active week (prerender-safe constant)
   const [currentMonday, setCurrentMonday] = useState<Date>(DEFAULT_ACTIVE_MONDAY);
   const [todayDateString, setTodayDateString] = useState<string>("2026-11-04");
 
-  // Data & Pagination States
   const [entries, setEntries] = useState<TimesheetEntry[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
@@ -106,15 +105,16 @@ export default function TimesheetsPage() {
   const [summary, setSummary] = useState<TimesheetSummary | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Active View Mode: 'matrix' | 'list' | 'queue'
   const [viewMode, setViewMode] = useState<"matrix" | "list" | "queue">("matrix");
 
-  // Filter States
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [projectFilter, setProjectFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // Modals
+  // Employee Scope Filter for Managers / HR
+  const [employees, setEmployees] = useState<EmployeeSummary[]>([]);
+  const [employeeFilter, setEmployeeFilter] = useState<string>("ME");
+
   const [isEntryModalOpen, setIsEntryModalOpen] = useState<boolean>(false);
   const [selectedEntryForEdit, setSelectedEntryForEdit] = useState<TimesheetEntry | null>(null);
   const [entryModalDefaultDate, setEntryModalDefaultDate] = useState<string | undefined>();
@@ -122,11 +122,9 @@ export default function TimesheetsPage() {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState<boolean>(false);
   const [selectedEntryForReview, setSelectedEntryForReview] = useState<TimesheetEntry | null>(null);
 
-  // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Client-side date initialization
   useEffect(() => {
     const now = new Date();
     setTodayDateString(formatDateISO(now));
@@ -135,7 +133,14 @@ export default function TimesheetsPage() {
     }
   }, []);
 
-  // Calculate 7 days for the active week
+  useEffect(() => {
+    if (canReview) {
+      getEmployees({ pageSize: 100 })
+        .then((res) => setEmployees(res.items || []))
+        .catch(() => setEmployees([]));
+    }
+  }, [canReview]);
+
   const weekDays = useMemo(() => {
     return VI_WEEKDAYS.map((dayName, idx) => {
       const d = addDays(currentMonday, idx);
@@ -153,7 +158,25 @@ export default function TimesheetsPage() {
   const fromDateISO = weekDays[0].date;
   const toDateISO = weekDays[6].date;
 
-  // Load Data with server pagination
+  // Determine effective employeeId for query:
+  // - Matrix view: focuses on an individual (defaults to ME / current user)
+  // - List / Queue view: supports ALL or specific employee
+  const effectiveEmployeeId = useMemo<string | undefined>(() => {
+    if (!canReview) {
+      return session?.employeeId || undefined;
+    }
+    if (viewMode === "matrix") {
+      if (employeeFilter === "ALL" || employeeFilter === "ME") {
+        return session?.employeeId || undefined;
+      }
+      return employeeFilter;
+    }
+    // List or Queue view
+    if (employeeFilter === "ME") return session?.employeeId || undefined;
+    if (employeeFilter === "ALL") return undefined;
+    return employeeFilter;
+  }, [canReview, viewMode, employeeFilter, session?.employeeId]);
+
   const loadData = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage(null);
@@ -170,13 +193,15 @@ export default function TimesheetsPage() {
               ? statusFilter
               : undefined,
           projectCode: projectFilter !== "ALL" ? projectFilter : undefined,
+          employeeId: effectiveEmployeeId,
           pageNumber: isMatrix ? 1 : currentPage,
           pageSize: isMatrix ? 100 : pageSize,
         }),
         getTimesheetSummary({
           fromDate: fromDateISO,
           toDate: toDateISO,
-        }),
+          employeeId: effectiveEmployeeId,
+        }).catch(() => null),
       ]);
       setEntries(listRes.items || []);
       setTotalCount(listRes.totalCount || 0);
@@ -195,6 +220,7 @@ export default function TimesheetsPage() {
     viewMode,
     statusFilter,
     projectFilter,
+    effectiveEmployeeId,
     currentPage,
     pageSize,
   ]);
@@ -203,14 +229,12 @@ export default function TimesheetsPage() {
     loadData();
   }, [loadData]);
 
-  // Toast Auto-dismiss
   useEffect(() => {
     if (!toastMessage) return;
     const timer = setTimeout(() => setToastMessage(null), 4000);
     return () => clearTimeout(timer);
   }, [toastMessage]);
 
-  // Week Navigation handlers
   const handlePrevWeek = () => {
     setCurrentMonday((prev) => addDays(prev, -7));
     setCurrentPage(1);
@@ -231,13 +255,7 @@ export default function TimesheetsPage() {
     setCurrentPage(1);
   };
 
-  // Entry Modal Triggers
-  const handleOpenCreate = (
-    defaultDate?: string,
-    presetProjectCode?: string,
-    presetProjectName?: string,
-    presetTaskTitle?: string
-  ) => {
+  const handleOpenCreate = (defaultDate?: string) => {
     setSelectedEntryForEdit(null);
     setEntryModalDefaultDate(defaultDate || fromDateISO);
     setIsEntryModalOpen(true);
@@ -254,7 +272,6 @@ export default function TimesheetsPage() {
     setIsReviewModalOpen(true);
   };
 
-  // Create or Update Submit Handler
   const handleSubmitEntry = async (
     data: CreateTimesheetEntryInput | UpdateTimesheetEntryInput,
     isEdit: boolean,
@@ -281,7 +298,6 @@ export default function TimesheetsPage() {
     await loadData();
   };
 
-  // Review Handler
   const handleReviewEntry = async (
     id: string,
     isApproved: boolean,
@@ -296,7 +312,6 @@ export default function TimesheetsPage() {
     await loadData();
   };
 
-  // Delete Handler
   const handleDeleteEntry = async (entry: TimesheetEntry) => {
     if (
       !window.confirm(
@@ -316,16 +331,19 @@ export default function TimesheetsPage() {
     }
   };
 
-  // Batch Submit Drafts
   const draftCount = useMemo(() => {
-    return entries.filter((e) => e.status === "Draft").length;
-  }, [entries]);
+    return entries.filter(
+      (e) =>
+        e.status === "Draft" &&
+        (!session?.employeeId || e.employeeId === session.employeeId)
+    ).length;
+  }, [entries, session?.employeeId]);
 
   const handleBatchSubmitWeek = async () => {
     if (draftCount === 0) return;
     if (
       !window.confirm(
-        `Bạn có chắc chắn muốn nộp phê duyệt toàn bộ ${draftCount} bản ghi nháp trong tuần này?`
+        `Bạn có chắc chắn muốn nộp phê duyệt toàn bộ ${draftCount} bản ghi nháp của bạn trong tuần này?`
       )
     ) {
       return;
@@ -344,14 +362,12 @@ export default function TimesheetsPage() {
     }
   };
 
-  // Distinct Project Codes for filter
   const distinctProjects = useMemo(() => {
     const set = new Set<string>(["PRJ-HRFLOW", "PRJ-CORE", "PRJ-ERP"]);
     entries.forEach((e) => set.add(e.projectCode));
     return Array.from(set);
   }, [entries]);
 
-  // Filtered/Displayed Entries (for local client search query)
   const displayedEntries = useMemo(() => {
     if (!searchQuery.trim()) return entries;
     const q = searchQuery.toLowerCase().trim();
@@ -367,14 +383,12 @@ export default function TimesheetsPage() {
     });
   }, [entries, searchQuery]);
 
-  // Pending count for approval tab badge
   const pendingQueueCount = useMemo(() => {
     return entries.filter((e) => e.status === "Submitted").length;
   }, [entries]);
 
   return (
     <div className="space-y-6 pb-12 animate-fade-in">
-      {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#059669] text-white shadow-xl text-[13px] font-medium animate-slide-in">
           <Icon name="check_circle" size={18} />
@@ -385,26 +399,21 @@ export default function TimesheetsPage() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="font-heading text-[26px] leading-[34px] font-bold text-[#111827]">
-              Kê khai & Phê duyệt Timesheet
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-[#EDE9FE] text-[#7C3AED] border border-[#DDD6FE]">
-              Giai đoạn 7
-            </span>
-          </div>
+          <h1 className="font-heading text-[26px] leading-[34px] font-bold text-[#111827]">
+            Kê khai & Phê duyệt Timesheet
+          </h1>
           <p className="text-[13px] text-[#6B7280] mt-1">
-            Ghi nhận giờ làm dự án, theo dõi định mức tiêu chuẩn tuần (40h) &amp; luồng xét duyệt công việc đa vai trò.
+            Ghi nhận giờ làm theo dự án, theo dõi định mức tiêu chuẩn tuần (40 giờ) và xét duyệt công việc.
           </p>
         </div>
 
         {/* Header Action Buttons */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 shrink-0">
           {draftCount > 0 && (
             <button
               type="button"
               onClick={handleBatchSubmitWeek}
-              className="px-3.5 py-2 rounded-lg border border-[#7C3AED] bg-white text-[#7C3AED] hover:bg-[#F5F3FF] text-[13px] font-medium transition-all flex items-center gap-1.5 shadow-xs"
+              className="px-3.5 py-2 rounded-lg border border-[#7C3AED] bg-white text-[#7C3AED] hover:bg-[#F5F3FF] text-[13px] font-medium transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
             >
               <Icon name="done_all" size={16} />
               <span>Nộp duyệt tuần ({draftCount} nháp)</span>
@@ -414,7 +423,7 @@ export default function TimesheetsPage() {
           <button
             type="button"
             onClick={() => handleOpenCreate()}
-            className="px-4 py-2 rounded-lg bg-[#7C3AED] text-white hover:bg-[#5B21B6] text-[13px] font-medium shadow-sm transition-all flex items-center gap-1.5"
+            className="px-4 py-2 rounded-lg bg-[#7C3AED] text-white hover:bg-[#5B21B6] text-[13px] font-medium shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <Icon name="add" size={16} />
             <span>Kê khai giờ làm</span>
@@ -423,20 +432,29 @@ export default function TimesheetsPage() {
       </div>
 
       {/* Metric Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Tổng giờ tuần */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-4 border border-[#E5E7EB] shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-[12px] font-medium text-[#6B7280]">Tổng giờ tuần này</p>
+            <p className="text-[12px] font-medium text-[#6B7280]">
+              Tổng giờ tuần này {viewMode === "matrix" || effectiveEmployeeId ? "" : "(Toàn bộ)"}
+            </p>
             <p className="font-mono text-[24px] font-bold text-[#111827] mt-1">
               {(summary?.totalHours || 0).toFixed(1)}
-              <span className="text-[13px] font-sans font-normal text-[#6B7280] ml-1">/ 40h</span>
+              <span className="text-[13px] font-sans font-normal text-[#6B7280] ml-1">
+                {viewMode === "matrix" || effectiveEmployeeId ? "/ 40h" : "giờ"}
+              </span>
             </p>
             <div className="flex items-center gap-1.5 mt-1 text-[11px] text-[#6B7280]">
-              <span className="font-semibold text-[#7C3AED]">
-                {(((summary?.totalHours || 0) / 40) * 100).toFixed(0)}%
-              </span>
-              <span>đạt định mức chuẩn</span>
+              {viewMode === "matrix" || effectiveEmployeeId ? (
+                <>
+                  <span className="font-semibold text-[#7C3AED]">
+                    {(((summary?.totalHours || 0) / 40) * 100).toFixed(0)}%
+                  </span>
+                  <span>đạt định mức chuẩn</span>
+                </>
+              ) : (
+                <span>Tổng giờ làm ghi nhận trong tuần</span>
+              )}
             </div>
           </div>
           <div className="w-11 h-11 rounded-xl bg-[#EDE9FE] text-[#7C3AED] flex items-center justify-center shrink-0">
@@ -444,10 +462,9 @@ export default function TimesheetsPage() {
           </div>
         </div>
 
-        {/* Card 2: Giờ tính phí (Billable) */}
         <div className="bg-white rounded-xl p-4 border border-[#E5E7EB] shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-[12px] font-medium text-[#6B7280]">Giờ tính phí (Billable)</p>
+            <p className="text-[12px] font-medium text-[#6B7280]">Giờ tính phí</p>
             <p className="font-mono text-[24px] font-bold text-[#0D9488] mt-1">
               {(summary?.billableHours || 0).toFixed(1)}
               <span className="text-[13px] font-sans font-normal text-[#6B7280] ml-1">h</span>
@@ -467,7 +484,6 @@ export default function TimesheetsPage() {
           </div>
         </div>
 
-        {/* Card 3: Chờ phê duyệt */}
         <div className="bg-white rounded-xl p-4 border border-[#E5E7EB] shadow-xs flex items-center justify-between">
           <div>
             <p className="text-[12px] font-medium text-[#6B7280]">Chờ phê duyệt</p>
@@ -484,7 +500,6 @@ export default function TimesheetsPage() {
           </div>
         </div>
 
-        {/* Card 4: Đã phê duyệt */}
         <div className="bg-white rounded-xl p-4 border border-[#E5E7EB] shadow-xs flex items-center justify-between">
           <div>
             <p className="text-[12px] font-medium text-[#6B7280]">Đã phê duyệt</p>
@@ -503,28 +518,27 @@ export default function TimesheetsPage() {
       </div>
 
       {/* Toolbar: Week Navigation & View Tabs */}
-      <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-xs p-4 flex flex-col lg:flex-row items-center justify-between gap-4">
-        {/* Week Selector */}
-        <div className="flex items-center gap-2">
+      <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-xs p-4 flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-4">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={handlePrevWeek}
-            className="w-8 h-8 rounded-lg border border-[#E5E7EB] flex items-center justify-center text-[#6B7280] hover:text-[#111827] hover:bg-[#F3F4F6] transition-all"
+            className="w-8 h-8 rounded-lg border border-[#E5E7EB] flex items-center justify-center text-[#6B7280] hover:text-[#111827] hover:bg-[#F3F4F6] transition-all cursor-pointer"
             title="Tuần trước"
           >
             <Icon name="chevron_left" size={18} />
           </button>
 
           <div className="px-3 py-1.5 rounded-lg bg-[#F9FAFB] border border-[#E5E7EB] text-center">
-            <span className="font-heading font-bold text-[14px] text-[#111827]">
-              {formatDateVN(fromDateISO)} - {formatDateVN(toDateISO)}
+            <span className="font-heading font-bold text-[14px] text-[#111827] whitespace-nowrap">
+              {formatDateVN(fromDateISO)} – {formatDateVN(toDateISO)}
             </span>
           </div>
 
           <button
             type="button"
             onClick={handleNextWeek}
-            className="w-8 h-8 rounded-lg border border-[#E5E7EB] flex items-center justify-center text-[#6B7280] hover:text-[#111827] hover:bg-[#F3F4F6] transition-all"
+            className="w-8 h-8 rounded-lg border border-[#E5E7EB] flex items-center justify-center text-[#6B7280] hover:text-[#111827] hover:bg-[#F3F4F6] transition-all cursor-pointer"
             title="Tuần sau"
           >
             <Icon name="chevron_right" size={18} />
@@ -533,28 +547,28 @@ export default function TimesheetsPage() {
           <button
             type="button"
             onClick={handleTodayWeek}
-            className="px-2.5 py-1.5 rounded-lg text-[12px] font-medium text-[#7C3AED] hover:bg-[#F5F3FF] transition-all"
+            className="px-2.5 py-1.5 rounded-lg text-[12px] font-medium text-[#7C3AED] hover:bg-[#F5F3FF] transition-all cursor-pointer whitespace-nowrap"
           >
             Tuần này
           </button>
         </div>
 
         {/* View Mode Switcher */}
-        <div className="flex items-center p-1 rounded-lg bg-[#F3F4F6] border border-[#E5E7EB] text-[13px] font-medium">
+        <div className="flex items-center flex-wrap p-1 rounded-lg bg-[#F3F4F6] border border-[#E5E7EB] text-[13px] font-medium self-start xl:self-auto">
           <button
             type="button"
             onClick={() => {
               setViewMode("matrix");
               setCurrentPage(1);
             }}
-            className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               viewMode === "matrix"
                 ? "bg-white text-[#7C3AED] shadow-xs font-semibold"
                 : "text-[#6B7280] hover:text-[#111827]"
             }`}
           >
             <Icon name="dashboard" size={15} />
-            <span>Ma trận tuần (Grid)</span>
+            <span>Bảng tuần</span>
           </button>
 
           <button
@@ -563,7 +577,7 @@ export default function TimesheetsPage() {
               setViewMode("list");
               setCurrentPage(1);
             }}
-            className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               viewMode === "list"
                 ? "bg-white text-[#7C3AED] shadow-xs font-semibold"
                 : "text-[#6B7280] hover:text-[#111827]"
@@ -580,7 +594,7 @@ export default function TimesheetsPage() {
                 setViewMode("queue");
                 setCurrentPage(1);
               }}
-              className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
                 viewMode === "queue"
                   ? "bg-white text-[#7C3AED] shadow-xs font-semibold"
                   : "text-[#6B7280] hover:text-[#111827]"
@@ -600,11 +614,10 @@ export default function TimesheetsPage() {
 
       {/* Filters Bar */}
       <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-xs p-4 flex flex-col md:flex-row items-center justify-between gap-3 text-[13px]">
-        {/* Search */}
         <div className="relative w-full md:w-80">
           <input
             type="text"
-            placeholder="Tìm theo task, dự án hoặc nhân sự..."
+            placeholder="Tìm theo công việc, dự án hoặc nhân sự..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full h-9 pl-9 pr-3 rounded-lg border border-[#E5E7EB] bg-white text-[#111827] text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] focus:ring-1 focus:ring-[#7C3AED]"
@@ -614,9 +627,33 @@ export default function TimesheetsPage() {
           </div>
         </div>
 
-        {/* Filter Chips & Project Select */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          {/* Project Dropdown */}
+          {canReview && (
+            <select
+              value={viewMode === "matrix" && employeeFilter === "ALL" ? "ME" : employeeFilter}
+              onChange={(e) => {
+                setEmployeeFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-9 px-3 rounded-lg border border-[#E5E7EB] bg-white text-[#111827] text-[12px] font-medium focus:outline-none focus:border-[#7C3AED] cursor-pointer"
+              title="Lọc theo nhân sự"
+            >
+              {viewMode !== "matrix" && (
+                <option value="ALL">Tất cả nhân sự ({employees.length})</option>
+              )}
+              <option value="ME">
+                {session?.fullName ? `${session.fullName} (Cá nhân tôi)` : "Cá nhân tôi"}
+              </option>
+              {employees
+                .filter((emp) => emp.id !== session?.employeeId)
+                .map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    [{emp.employeeCode}] {emp.fullName}
+                  </option>
+                ))}
+            </select>
+          )}
+
           <select
             value={projectFilter}
             onChange={(e) => {
@@ -633,7 +670,6 @@ export default function TimesheetsPage() {
             ))}
           </select>
 
-          {/* Status Pills */}
           <div className="flex items-center gap-1 bg-[#F9FAFB] p-0.5 rounded-lg border border-[#E5E7EB]">
             {["ALL", "Approved", "Submitted", "Draft", "Rejected"].map((st) => (
               <button
@@ -643,7 +679,7 @@ export default function TimesheetsPage() {
                   setStatusFilter(st);
                   setCurrentPage(1);
                 }}
-                className={`px-2.5 py-1 rounded text-[11px] font-medium transition-all ${
+                className={`px-2.5 py-1 rounded text-[11px] font-medium transition-all cursor-pointer ${
                   statusFilter === st
                     ? "bg-white text-[#7C3AED] shadow-xs font-semibold"
                     : "text-[#6B7280] hover:text-[#111827]"
@@ -662,7 +698,6 @@ export default function TimesheetsPage() {
             ))}
           </div>
 
-          {/* Page size select in list mode */}
           {viewMode !== "matrix" && (
             <select
               value={pageSize}
@@ -686,7 +721,7 @@ export default function TimesheetsPage() {
       {isLoading ? (
         <div className="py-20 flex flex-col items-center justify-center space-y-3 bg-white rounded-xl border border-[#E5E7EB]">
           <div className="w-8 h-8 border-3 border-[#7C3AED] border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-[13px] text-[#6B7280]">Đang đồng bộ dữ liệu timesheet...</span>
+          <span className="text-[13px] text-[#6B7280]">Đang tải dữ liệu timesheet...</span>
         </div>
       ) : errorMessage ? (
         <div className="p-6 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] text-center">
@@ -701,7 +736,6 @@ export default function TimesheetsPage() {
           </button>
         </div>
       ) : viewMode === "matrix" ? (
-        /* View 1: Weekly Matrix */
         <TimesheetWeeklyGrid
           days={weekDays}
           entries={displayedEntries}
@@ -711,7 +745,6 @@ export default function TimesheetsPage() {
           canReview={canReview}
         />
       ) : (
-        /* View 2: Detailed List / Table View & View 3: Queue */
         <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden flex flex-col">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-[13px]">
@@ -720,7 +753,7 @@ export default function TimesheetsPage() {
                   <th className="py-3 px-4">Ngày làm</th>
                   <th className="py-3 px-4">Nhân sự</th>
                   <th className="py-3 px-4">Dự án</th>
-                  <th className="py-3 px-4">Nhiệm vụ / Task</th>
+                  <th className="py-3 px-4">Công việc</th>
                   <th className="py-3 px-4 text-center">Giờ làm</th>
                   <th className="py-3 px-4 text-center">Tính phí</th>
                   <th className="py-3 px-4 text-center">Trạng thái</th>
@@ -747,12 +780,10 @@ export default function TimesheetsPage() {
                         key={item.id}
                         className="hover:bg-[#F9FAFB] transition-colors"
                       >
-                        {/* WorkDate */}
                         <td className="py-3 px-4 font-mono font-medium text-[#111827] whitespace-nowrap">
                           {formatDateVN(item.workDate)}
                         </td>
 
-                        {/* Employee */}
                         <td className="py-3 px-4 whitespace-nowrap">
                           <p className="font-semibold text-[#111827]">
                             {item.employeeFullName}
@@ -763,7 +794,6 @@ export default function TimesheetsPage() {
                           </p>
                         </td>
 
-                        {/* Project */}
                         <td className="py-3 px-4 whitespace-nowrap">
                           <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#EDE9FE] text-[#7C3AED] border border-[#DDD6FE]">
                             {item.projectCode}
@@ -773,7 +803,6 @@ export default function TimesheetsPage() {
                           </p>
                         </td>
 
-                        {/* Task Title & Description */}
                         <td className="py-3 px-4 max-w-[260px]">
                           <p className="font-medium text-[#111827] truncate">
                             {item.taskTitle}
@@ -790,25 +819,22 @@ export default function TimesheetsPage() {
                           )}
                         </td>
 
-                        {/* Hours */}
                         <td className="py-3 px-4 text-center font-mono font-bold text-[#111827]">
                           {item.hoursWorked.toFixed(2)}h
                         </td>
 
-                        {/* Billable */}
-                        <td className="py-3 px-4 text-center">
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                            className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
                               item.isBillable
                                 ? "bg-[#F0FDFA] text-[#0D9488] border border-[#99F6E4]"
                                 : "bg-[#F3F4F6] text-[#6B7280] border border-[#E5E7EB]"
                             }`}
                           >
-                            {item.isBillable ? "Billable" : "Non-bill"}
+                            {item.isBillable ? "Tính phí" : "Nội bộ"}
                           </span>
                         </td>
 
-                        {/* Status */}
                         <td className="py-3 px-4 text-center whitespace-nowrap">
                           <span
                             className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${st.bg} ${st.text} ${st.border}`}
@@ -818,7 +844,6 @@ export default function TimesheetsPage() {
                           </span>
                         </td>
 
-                        {/* Approver */}
                         <td className="py-3 px-4 text-[12px] text-[#6B7280] whitespace-nowrap">
                           {item.approverFullName ? (
                             <div>
@@ -836,41 +861,37 @@ export default function TimesheetsPage() {
                           )}
                         </td>
 
-                        {/* Actions */}
                         <td className="py-3 px-4 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1.5">
-                            {/* Review action for Manager/HR */}
                             {canReview && item.status === "Submitted" && (
                               <button
                                 type="button"
                                 onClick={() => handleOpenReview(item)}
-                                className="px-2.5 py-1 rounded-md bg-[#059669] text-white hover:bg-[#047857] text-[11px] font-medium transition-all shadow-xs"
+                                className="px-2.5 py-1 rounded-md bg-[#059669] text-white hover:bg-[#047857] text-[11px] font-medium transition-all shadow-xs cursor-pointer"
                                 title="Phê duyệt hoặc từ chối"
                               >
                                 Xét duyệt
                               </button>
                             )}
 
-                            {/* Edit action */}
                             {item.status !== "Approved" && (isOwner || canReview) && (
                               <button
                                 type="button"
                                 onClick={() => handleOpenEdit(item)}
-                                className="w-7 h-7 rounded-md border border-[#E5E7EB] text-[#4B5563] hover:text-[#7C3AED] hover:bg-[#F5F3FF] flex items-center justify-center transition-all"
+                                className="w-7 h-7 rounded-md border border-[#E5E7EB] text-[#4B5563] hover:text-[#7C3AED] hover:bg-[#F5F3FF] flex items-center justify-center transition-all cursor-pointer"
                                 title="Chỉnh sửa"
                               >
                                 <Icon name="edit_square" size={14} />
                               </button>
                             )}
 
-                            {/* Delete action */}
                             {(item.status !== "Approved" ||
                               hasRole("SUPER_ADMIN") ||
                               hasRole("HR_MANAGER")) && (
                               <button
                                 type="button"
                                 onClick={() => handleDeleteEntry(item)}
-                                className="w-7 h-7 rounded-md border border-[#E5E7EB] text-[#DC2626] hover:bg-[#FEF2F2] flex items-center justify-center transition-all"
+                                className="w-7 h-7 rounded-md border border-[#E5E7EB] text-[#DC2626] hover:bg-[#FEF2F2] flex items-center justify-center transition-all cursor-pointer"
                                 title="Xóa"
                               >
                                 <Icon name="delete" size={14} />
@@ -886,7 +907,6 @@ export default function TimesheetsPage() {
             </table>
           </div>
 
-          {/* Pagination for list/queue view */}
           <Pagination
             pageNumber={currentPage}
             pageSize={pageSize}

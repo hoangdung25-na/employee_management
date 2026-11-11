@@ -1,3 +1,4 @@
+using EmployeeManagement.Api.Authorization;
 using EmployeeManagement.Application.Common;
 using EmployeeManagement.Application.Employees.Commands.CreateDecision;
 using EmployeeManagement.Application.Employees.Commands.DeleteDecision;
@@ -45,7 +46,7 @@ public class DecisionsController : ControllerBase
     /// Automatically updates employee Department, Position, and BaseSalary on Transfer or Promotion.
     /// </summary>
     [HttpPost]
-    [Authorize(Policy = UserConsts.Permissions.DecisionManage)]
+    [RequirePermission(PermissionNames.Decisions.Manage)]
     [ProducesResponseType(typeof(ApiResponse<EmployeeDecisionDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -82,7 +83,7 @@ public class DecisionsController : ControllerBase
     /// Cancels or soft-deletes an employee decision record.
     /// </summary>
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = UserConsts.Permissions.DecisionManage)]
+    [RequirePermission(PermissionNames.Decisions.Manage)]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)

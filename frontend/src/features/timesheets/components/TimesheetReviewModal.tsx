@@ -60,10 +60,10 @@ export function TimesheetReviewModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#111827]/50 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-xl shadow-2xl border border-[#E5E7EB] w-full max-w-lg overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#111827]/50 backdrop-blur-sm overflow-y-auto animate-fade-in">
+      <div className="bg-white rounded-xl shadow-2xl border border-[#E5E7EB] w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col my-auto">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#E5E7EB] flex items-center justify-between bg-[#FAFAFA]">
+        <div className="px-6 py-4 border-b border-[#E5E7EB] flex items-center justify-between bg-[#FAFAFA] shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-lg bg-[#F0FDFA] text-[#0D9488] flex items-center justify-center">
               <Icon name="verified" size={20} />
@@ -79,7 +79,7 @@ export function TimesheetReviewModal({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:text-[#111827] hover:bg-[#F3F4F6] transition-all"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:text-[#111827] hover:bg-[#F3F4F6] transition-all cursor-pointer"
             type="button"
           >
             <Icon name="close" size={18} />
@@ -87,7 +87,7 @@ export function TimesheetReviewModal({
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-4 text-[13px]">
+        <div className="p-6 space-y-4 text-[13px] flex-1 overflow-y-auto">
           {error && (
             <div className="p-3 rounded-lg bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] flex items-center gap-2">
               <Icon name="warning" size={16} />
@@ -142,7 +142,7 @@ export function TimesheetReviewModal({
                   {entry.hoursWorked.toFixed(2)}h
                 </p>
                 <span className="text-[10px] font-semibold text-[#6B7280]">
-                  {entry.isBillable ? "Tính phí (Billable)" : "Non-billable"}
+                  {entry.isBillable ? "Tính phí" : "Nội bộ"}
                 </span>
               </div>
             </div>
@@ -156,7 +156,7 @@ export function TimesheetReviewModal({
               </label>
               <textarea
                 rows={3}
-                placeholder="Nhập lý do cụ thể (sai dự án, thiếu giờ làm, task chưa rõ ràng...)"
+                placeholder="Nhập lý do cụ thể (sai dự án, thiếu giờ làm, nội dung chưa rõ ràng...)"
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 className="w-full p-3 rounded-lg border border-[#FECACA] bg-[#FEF2F2]/30 text-[#111827] focus:outline-none focus:border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20 resize-none"
@@ -166,12 +166,12 @@ export function TimesheetReviewModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-[#E5E7EB] bg-[#FAFAFA] flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-[#E5E7EB] bg-[#FAFAFA] flex items-center justify-between shrink-0">
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="px-4 py-2 rounded-lg border border-[#E5E7EB] text-[#4B5563] font-medium hover:bg-[#F3F4F6] transition-all"
+            className="px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-[#4B5563] font-medium hover:bg-[#F3F4F6] transition-all cursor-pointer"
           >
             Đóng
           </button>
@@ -183,7 +183,7 @@ export function TimesheetReviewModal({
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => setIsRejectMode(true)}
-                  className="px-4 py-2 rounded-lg border border-[#FECACA] bg-white text-[#DC2626] font-medium hover:bg-[#FEF2F2] transition-all disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg border border-[#FECACA] bg-white text-[#DC2626] font-medium hover:bg-[#FEF2F2] transition-all disabled:opacity-50 cursor-pointer"
                 >
                   Từ chối...
                 </button>
@@ -191,10 +191,10 @@ export function TimesheetReviewModal({
                   type="button"
                   disabled={isSubmitting}
                   onClick={handleApprove}
-                  className="px-5 py-2 rounded-lg bg-[#059669] text-white font-medium hover:bg-[#047857] shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-5 py-2 rounded-lg bg-[#059669] text-white font-medium hover:bg-[#047857] shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                 >
                   <Icon name="check_circle" size={16} />
-                  <span>{isSubmitting ? "Đang xử lý..." : "Phê duyệt (Approve)"}</span>
+                  <span>{isSubmitting ? "Đang xử lý..." : "Phê duyệt"}</span>
                 </button>
               </>
             ) : (
@@ -202,7 +202,7 @@ export function TimesheetReviewModal({
                 <button
                   type="button"
                   onClick={() => setIsRejectMode(false)}
-                  className="px-3 py-2 text-[#6B7280] hover:text-[#111827] text-[12px]"
+                  className="px-3 py-2 text-[#6B7280] hover:text-[#111827] text-[12px] cursor-pointer"
                 >
                   Quay lại
                 </button>
@@ -210,7 +210,7 @@ export function TimesheetReviewModal({
                   type="button"
                   disabled={isSubmitting}
                   onClick={handleReject}
-                  className="px-5 py-2 rounded-lg bg-[#DC2626] text-white font-medium hover:bg-[#B91C1C] shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-5 py-2 rounded-lg bg-[#DC2626] text-white font-medium hover:bg-[#B91C1C] shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                 >
                   <Icon name="close" size={16} />
                   <span>{isSubmitting ? "Đang gửi..." : "Xác nhận từ chối"}</span>
@@ -223,4 +223,3 @@ export function TimesheetReviewModal({
     </div>
   );
 }
-

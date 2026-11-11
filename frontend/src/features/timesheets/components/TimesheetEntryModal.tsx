@@ -25,7 +25,7 @@ const PRESET_PROJECTS = [
   { code: "PRJ-CORE", name: "Nền tảng Dịch vụ Lõi Doanh nghiệp" },
   { code: "PRJ-ERP", name: "Phân hệ Kế toán & Tài chính Doanh nghiệp" },
   { code: "PRJ-CRM", name: "Nền tảng Quản trị Quan hệ Khách hàng" },
-  { code: "PRJ-MOBILE", name: "Ứng dụng Di động Nhân viên (HRFlow Mobile)" },
+  { code: "PRJ-MOBILE", name: "Ứng dụng Di động Nhân viên" },
 ];
 
 export function TimesheetEntryModal({
@@ -84,7 +84,7 @@ export function TimesheetEntryModal({
       return;
     }
     if (!taskTitle.trim()) {
-      setError("Vui lòng nhập tiêu đề hoặc nội dung công việc.");
+      setError("Vui lòng nhập nội dung công việc.");
       return;
     }
     if (hoursWorked <= 0 || hoursWorked > 24) {
@@ -119,26 +119,26 @@ export function TimesheetEntryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#111827]/50 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-xl shadow-2xl border border-[#E5E7EB] w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#111827]/50 backdrop-blur-sm overflow-y-auto animate-fade-in">
+      <div className="bg-white rounded-xl shadow-2xl border border-[#E5E7EB] w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh] my-auto">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#E5E7EB] flex items-center justify-between bg-[#FAFAFA]">
+        <div className="px-6 py-4 border-b border-[#E5E7EB] flex items-center justify-between bg-[#FAFAFA] shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-lg bg-[#EDE9FE] text-[#7C3AED] flex items-center justify-center">
               <Icon name="schedule" size={20} />
             </div>
             <div>
               <h3 className="font-heading text-[18px] font-bold text-[#111827]">
-                {isEdit ? "Chỉnh sửa dòng Timesheet" : "Kê khai giờ làm dự án mới"}
+                {isEdit ? "Chỉnh sửa dòng Timesheet" : "Kê khai giờ làm mới"}
               </h3>
               <p className="text-[12px] text-[#6B7280]">
-                Ghi nhận chi tiết công việc, số giờ và phân bổ dự án theo chuẩn doanh nghiệp.
+                Ghi nhận chi tiết công việc, số giờ và phân bổ dự án.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:text-[#111827] hover:bg-[#F3F4F6] transition-all"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:text-[#111827] hover:bg-[#F3F4F6] transition-all cursor-pointer"
             type="button"
           >
             <Icon name="close" size={18} />
@@ -146,7 +146,7 @@ export function TimesheetEntryModal({
         </div>
 
         {/* Form Body */}
-        <div className="p-6 overflow-y-auto space-y-4 text-[13px]">
+        <div className="p-6 flex-1 overflow-y-auto space-y-4 text-[13px]">
           {error && (
             <div className="p-3 rounded-lg bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] flex items-center gap-2">
               <Icon name="warning" size={16} />
@@ -170,7 +170,7 @@ export function TimesheetEntryModal({
 
             <div>
               <label className="block font-medium text-[#111827] mb-1.5">
-                Số giờ làm (Hours) <span className="text-[#EF4444]">*</span>
+                Số giờ làm <span className="text-[#EF4444]">*</span>
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -188,7 +188,7 @@ export function TimesheetEntryModal({
                       key={h}
                       type="button"
                       onClick={() => handleQuickHours(h)}
-                      className={`px-2 py-1.5 rounded text-[11px] font-mono font-medium transition-all ${
+                      className={`px-2 py-1.5 rounded text-[11px] font-mono font-medium transition-all cursor-pointer ${
                         hoursWorked === h
                           ? "bg-[#7C3AED] text-white"
                           : "bg-[#F3F4F6] text-[#4B5563] hover:bg-[#EDE9FE] hover:text-[#7C3AED]"
@@ -213,7 +213,7 @@ export function TimesheetEntryModal({
                   key={proj.code}
                   type="button"
                   onClick={() => handleSelectPreset(proj.code, proj.name)}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all border ${
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all border cursor-pointer ${
                     projectCode === proj.code
                       ? "bg-[#EDE9FE] text-[#7C3AED] border-[#7C3AED]"
                       : "bg-[#F9FAFB] text-[#4B5563] border-[#E5E7EB] hover:bg-[#F3F4F6]"
@@ -245,11 +245,11 @@ export function TimesheetEntryModal({
           {/* Task Title */}
           <div>
             <label className="block font-medium text-[#111827] mb-1.5">
-              Tiêu đề nhiệm vụ / Task <span className="text-[#EF4444]">*</span>
+              Nội dung công việc <span className="text-[#EF4444]">*</span>
             </label>
             <input
               type="text"
-              placeholder="VD: Thiết kế giao diện Timesheet theo Stitch Design System..."
+              placeholder="VD: Thiết kế giao diện phân hệ quản lý chấm công..."
               value={taskTitle}
               onChange={(e) => setTaskTitle(e.target.value)}
               className="w-full h-10 px-3 rounded-lg border border-[#E5E7EB] bg-white text-[#111827] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
@@ -259,11 +259,11 @@ export function TimesheetEntryModal({
           {/* Description */}
           <div>
             <label className="block font-medium text-[#111827] mb-1.5">
-              Mô tả chi tiết công việc (tùy chọn)
+              Mô tả chi tiết (tùy chọn)
             </label>
             <textarea
               rows={3}
-              placeholder="Ghi chú chi tiết kết quả công việc, module đã hoàn thiện, link ticket hoặc vấn đề cần xử lý..."
+              placeholder="Ghi chú chi tiết kết quả công việc, hạng mục đã hoàn thiện hoặc vấn đề cần xử lý..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full p-3 rounded-lg border border-[#E5E7EB] bg-white text-[#111827] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 resize-none"
@@ -280,28 +280,28 @@ export function TimesheetEntryModal({
                 className="w-4 h-4 rounded text-[#7C3AED] focus:ring-[#7C3AED]"
               />
               <span className="font-medium text-[#111827]">
-                Công việc tính phí (Billable to Client / Cost Center)
+                Công việc tính phí theo dự án
               </span>
             </label>
             <span
-              className={`px-2 py-0.5 rounded-full text-[11px] font-semibold font-mono ${
+              className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
                 isBillable
                   ? "bg-[#F0FDFA] text-[#0D9488] border border-[#99F6E4]"
                   : "bg-[#F3F4F6] text-[#6B7280] border border-[#E5E7EB]"
               }`}
             >
-              {isBillable ? "Billable 100%" : "Non-billable"}
+              {isBillable ? "Tính phí" : "Nội bộ"}
             </span>
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-[#E5E7EB] bg-[#FAFAFA] flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-[#E5E7EB] bg-[#FAFAFA] flex items-center justify-between shrink-0">
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="px-4 py-2 rounded-lg border border-[#E5E7EB] text-[#4B5563] font-medium hover:bg-[#F3F4F6] transition-all"
+            className="px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-[#4B5563] font-medium hover:bg-[#F3F4F6] transition-all cursor-pointer"
           >
             Hủy bỏ
           </button>
@@ -311,15 +311,15 @@ export function TimesheetEntryModal({
               type="button"
               disabled={isSubmitting}
               onClick={() => handleSave(false)}
-              className="px-4 py-2 rounded-lg border border-[#7C3AED] text-[#7C3AED] font-medium hover:bg-[#F5F3FF] transition-all disabled:opacity-50"
+              className="px-4 py-2 rounded-lg border border-[#7C3AED] bg-white text-[#7C3AED] font-medium hover:bg-[#F5F3FF] transition-all disabled:opacity-50 cursor-pointer"
             >
-              {isSubmitting ? "Đang lưu..." : "Lưu bản nháp (Draft)"}
+              {isSubmitting ? "Đang lưu..." : "Lưu bản nháp"}
             </button>
             <button
               type="button"
               disabled={isSubmitting}
               onClick={() => handleSave(true)}
-              className="px-5 py-2 rounded-lg bg-[#7C3AED] text-white font-medium hover:bg-[#5B21B6] shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
+              className="px-5 py-2 rounded-lg bg-[#7C3AED] text-white font-medium hover:bg-[#5B21B6] shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
             >
               <Icon name="check_circle" size={16} />
               <span>{isSubmitting ? "Đang gửi..." : "Nộp phê duyệt ngay"}</span>

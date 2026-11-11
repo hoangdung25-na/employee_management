@@ -5,9 +5,9 @@ import { Icon } from "@/components/ui/Icon";
 import { TimesheetEntry } from "../types/timesheet";
 
 interface WeekDayInfo {
-  date: string; // 'YYYY-MM-DD'
-  dayName: string; // 'T2', 'T3', ...
-  dayNumber: number; // 2, 3, 4, ...
+  date: string;
+  dayName: string;
+  dayNumber: number;
   isToday: boolean;
   isWeekend: boolean;
 }
@@ -29,7 +29,6 @@ export function TimesheetWeeklyGrid({
   onOpenReview,
   canReview,
 }: TimesheetWeeklyGridProps) {
-  // Group entries by ProjectCode + TaskTitle
   interface RowGroup {
     key: string;
     projectCode: string;
@@ -63,7 +62,6 @@ export function TimesheetWeeklyGrid({
 
   const rowGroups = Array.from(rowGroupsMap.values());
 
-  // Calculate daily totals
   const dailyTotals: Record<string, number> = {};
   days.forEach((d) => {
     dailyTotals[d.date] = entries
@@ -90,13 +88,11 @@ export function TimesheetWeeklyGrid({
 
   return (
     <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden flex flex-col">
-      {/* Table Container */}
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[900px]">
-          {/* Table Header */}
           <thead>
             <tr className="bg-[#FAFAFA] border-b border-[#E5E7EB] text-[12px] font-semibold text-[#6B7280] uppercase tracking-wider">
-              <th className="py-3 px-4 w-[340px]">Dự án & Nhiệm vụ</th>
+              <th className="py-3 px-4 w-[340px]">Dự án & Công việc</th>
               {days.map((d) => (
                 <th
                   key={d.date}
@@ -128,7 +124,6 @@ export function TimesheetWeeklyGrid({
             </tr>
           </thead>
 
-          {/* Table Body */}
           <tbody className="divide-y divide-[#E5E7EB] text-[13px]">
             {rowGroups.length === 0 ? (
               <tr>
@@ -149,7 +144,7 @@ export function TimesheetWeeklyGrid({
                     <button
                       type="button"
                       onClick={() => onOpenCreate(days[0]?.date)}
-                      className="mt-2 px-4 py-2 rounded-lg bg-[#7C3AED] text-white font-medium text-[13px] hover:bg-[#5B21B6] transition-all flex items-center gap-1.5"
+                      className="mt-2 px-4 py-2 rounded-lg bg-[#7C3AED] text-white font-medium text-[13px] hover:bg-[#5B21B6] transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       <Icon name="add" size={16} />
                       <span>Kê khai giờ làm đầu tiên</span>
@@ -163,7 +158,6 @@ export function TimesheetWeeklyGrid({
                   key={group.key}
                   className="hover:bg-[#F9FAFB] transition-colors group"
                 >
-                  {/* Project & Task Column */}
                   <td className="py-3 px-4">
                     <div className="flex items-start gap-2.5">
                       <span className="mt-0.5 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#EDE9FE] text-[#7C3AED] shrink-0 border border-[#DDD6FE]">
@@ -177,7 +171,7 @@ export function TimesheetWeeklyGrid({
                           <span className="truncate">{group.projectName}</span>
                           {group.isBillable && (
                             <span className="text-[#0D9488] font-medium shrink-0">
-                              • Billable
+                              • Tính phí
                             </span>
                           )}
                         </div>
@@ -185,7 +179,6 @@ export function TimesheetWeeklyGrid({
                     </div>
                   </td>
 
-                  {/* 7 Days Columns */}
                   {days.map((d) => {
                     const entry = group.entriesByDate[d.date];
                     return (
@@ -205,8 +198,8 @@ export function TimesheetWeeklyGrid({
                                 onOpenEdit(entry);
                               }
                             }}
-                            title={`${entry.taskTitle} (${entry.hoursWorked}h) - Trạng thái: ${entry.status}${entry.description ? `\nGhi chú: ${entry.description}` : ""}`}
-                            className={`w-full py-1.5 px-1 rounded-lg border font-mono font-bold text-[12px] shadow-xs transition-all hover:scale-105 ${getStatusBadgeStyle(
+                            title={`${entry.taskTitle} (${entry.hoursWorked}h)${entry.description ? `\nGhi chú: ${entry.description}` : ""}`}
+                            className={`w-full py-1.5 px-1 rounded-lg border font-mono font-bold text-[12px] shadow-xs transition-all hover:scale-105 cursor-pointer ${getStatusBadgeStyle(
                               entry.status
                             )}`}
                           >
@@ -232,7 +225,7 @@ export function TimesheetWeeklyGrid({
                                 group.taskTitle
                               )
                             }
-                            className="w-full py-2 rounded-lg text-transparent group-hover:text-[#9CA3AF] hover:!text-[#7C3AED] hover:bg-[#EDE9FE] transition-all flex items-center justify-center"
+                            className="w-full py-2 rounded-lg text-transparent group-hover:text-[#9CA3AF] hover:!text-[#7C3AED] hover:bg-[#EDE9FE] transition-all flex items-center justify-center cursor-pointer"
                             title={`Ghi giờ cho ${d.dayName} (${d.date})`}
                           >
                             <Icon name="add" size={14} />
@@ -242,7 +235,6 @@ export function TimesheetWeeklyGrid({
                     );
                   })}
 
-                  {/* Row Total */}
                   <td className="py-3 px-4 text-right font-mono font-bold text-[14px] text-[#111827]">
                     {group.totalHours.toFixed(1)}h
                   </td>
@@ -251,7 +243,6 @@ export function TimesheetWeeklyGrid({
             )}
           </tbody>
 
-          {/* Table Footer: Daily Totals */}
           {rowGroups.length > 0 && (
             <tfoot>
               <tr className="bg-[#FAFAFA] border-t-2 border-[#E5E7EB] font-mono text-[13px] font-bold">
@@ -284,23 +275,23 @@ export function TimesheetWeeklyGrid({
 
       {/* Quick Legend & Status Summary */}
       <div className="px-5 py-3 border-t border-[#E5E7EB] bg-[#FAFAFA] flex flex-wrap items-center justify-between gap-3 text-[12px] text-[#6B7280]">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <span className="font-semibold text-[#111827]">Trạng thái:</span>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-[#059669]"></span>
-            <span>Đã phê duyệt (Approved)</span>
+            <span>Đã phê duyệt</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-[#D97706]"></span>
-            <span>Chờ duyệt (Submitted)</span>
+            <span>Chờ duyệt</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-[#9CA3AF]"></span>
-            <span>Bản nháp (Draft)</span>
+            <span>Bản nháp</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-[#DC2626]"></span>
-            <span>Từ chối (Rejected)</span>
+            <span>Từ chối</span>
           </div>
         </div>
 
@@ -315,4 +306,3 @@ export function TimesheetWeeklyGrid({
     </div>
   );
 }
-

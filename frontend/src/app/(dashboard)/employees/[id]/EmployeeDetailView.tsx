@@ -3,10 +3,16 @@
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { EmployeeDetail } from "@/features/employees/types/employee";
+import { EmployeeContract } from "@/features/employees/types/contract";
+import { EmployeeDecision } from "@/features/employees/types/decision";
 import {
   getEmployeeById,
+  getEmployeeContracts,
+  getEmployeeDecisions,
   terminateEmployee,
 } from "@/features/employees/services/employeeService";
+import { TimelineMilestone } from "@/components/ui/Timeline";
+import { formatDateVN } from "@/lib/utils/format";
 import { EmployeeFormModal } from "@/features/employees/components/EmployeeFormModal";
 import { EmployeeDocumentsTab } from "@/features/employees/components/EmployeeDocumentsTab";
 import { EmployeeContractsTab } from "@/features/employees/components/EmployeeContractsTab";
@@ -50,14 +56,24 @@ export function EmployeeDetailView({ id }: EmployeeDetailViewProps) {
 
   // Toast feedback
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [decisionsCount, setDecisionsCount] = useState<number | undefined>(undefined);
+  const [contracts, setContracts] = useState<EmployeeContract[]>([]);
+  const [decisions, setDecisions] = useState<EmployeeDecision[]>([]);
 
   const fetchDetail = useCallback(async () => {
     if (!id) return;
     setIsLoading(true);
     setError(null);
     try {
-      const data = await getEmployeeById(id);
+      const [data, contractList, decisionList] = await Promise.all([
+        getEmployeeById(id),
+        getEmployeeContracts(id).catch(() => [] as EmployeeContract[]),
+        getEmployeeDecisions(id).catch(() => [] as EmployeeDecision[]),
+      ]);
       setEmployee(data);
+      setContracts(contractList);
+      setDecisions(decisionList);
+      setDecisionsCount(decisionList.length);
     } catch (err) {
       setError(
         err instanceof Error
@@ -76,7 +92,7 @@ export function EmployeeDetailView({ id }: EmployeeDetailViewProps) {
   const handleEditSuccess = (updated: EmployeeDetail) => {
     setEmployee(updated);
     setIsEditModalOpen(false);
-    setToastMessage("Cập nhật hồ sơ thành viên thành công!");
+    setToastMessage("Cập nhật hồ sơ nhân sự thành công!");
     setTimeout(() => setToastMessage(null), 4000);
   };
 
@@ -166,14 +182,139 @@ export function EmployeeDetailView({ id }: EmployeeDetailViewProps) {
     );
   }
 
-  const [decisionsCount, setDecisionsCount] = useState<number | undefined>(undefined);
-
   const tabs: TabItem[] = [
     { id: "profile", label: "Thông tin chung", icon: "badge" },
     { id: "contracts", label: "Hợp đồng lao động", icon: "description" },
     { id: "decisions", label: "Quyết định nhân sự", icon: "military_tech", count: decisionsCount },
     { id: "documents", label: "Tài liệu đính kèm", icon: "school" },
   ];
+
+  const CONTRACT_TYPE_NAMES: Record<string, string> = {
+    Probation: "Thử việc (60 ngày)",
+    FixedTerm1Y: "Xác định thời hạn 1 năm",
+    FixedTerm3Y: "Xác định thời hạn 3 năm",
+    Indefinite: "Không xác định thời hạn",
+    Seasonal: "Mùa vụ / Dự án",
+  };
+
+  const timelineEntries: Array<{ sortDate: string; milestone: TimelineMilestone }> = [];
+
+  if (employee.status === "Terminated" && employee.terminationDate) {
+    timelineEntries.push({
+      sortDate: employee.terminationDate,
+      milestone: {
+        id: `term-${employee.id}`,
+        dateText: formatDateVN(employee.terminationDate),
+        badgeLabel: "Thôi việc",
+        badgeColorClass: "bg-[#FEE2E2] text-[#991B1B]",
+        icon: "person_off",
+        iconBgClass: "bg-[#EF4444]",
+        iconColorClass: "text-white",
+        title: "Chấm dứt hợp đồng lao động",
+        description:
+          employee.terminationReason ||
+          "Hoàn tất thủ tục bàn giao và thôi việc tại công ty.",
+      },
+    });
+  }
+
+  decisions
+    .filter((d) => d.status !== "Cancelled")
+    .forEach((dec) => {
+      const isReward = dec.decisionType === "Reward";
+      const isDiscipline = dec.decisionType === "Discipline";
+      const isTransfer = dec.decisionType === "Transfer";
+      timelineEntries.push({
+        sortDate: dec.effectiveDate,
+        milestone: {
+          id: `dec-${dec.id}`,
+          dateText: formatDateVN(dec.effectiveDate),
+          badgeLabel: isReward
+            ? "Khen thưởng"
+            : isDiscipline
+              ? "Kỷ luật"
+              : isTransfer
+                ? "Điều chuyển"
+                : "Bổ nhiệm",
+          badgeColorClass: isReward
+            ? "bg-[#FEF3C7] text-[#92400E]"
+            : isDiscipline
+              ? "bg-[#FEE2E2] text-[#991B1B]"
+              : isTransfer
+                ? "bg-[#E0E7FF] text-[#3730A3]"
+                : "bg-[#EDE9FE] text-[#7C3AED]",
+          icon: isReward
+            ? "emoji_events"
+            : isDiscipline
+              ? "shield_check"
+              : isTransfer
+                ? "trending_up"
+                : "military_tech",
+          iconBgClass: isReward
+            ? "bg-[#F59E0B]"
+            : isDiscipline
+              ? "bg-[#EF4444]"
+              : isTransfer
+                ? "bg-[#4F46E5]"
+                : "bg-[#7C3AED]",
+          iconColorClass: "text-white",
+          title: dec.title,
+          description:
+            dec.reason ||
+            (dec.newPositionName
+              ? `Chức vụ mới: ${dec.newPositionName}${dec.newDepartmentName ? ` (${dec.newDepartmentName})` : ""}`
+              : "Quyết định nhân sự đã được phê duyệt."),
+          code: dec.decisionNumber,
+        },
+      });
+    });
+
+  contracts.forEach((c) => {
+    const typeLabel = CONTRACT_TYPE_NAMES[c.contractType] || c.contractType;
+    timelineEntries.push({
+      sortDate: c.startDate,
+      milestone: {
+        id: `con-${c.id}`,
+        dateText: c.endDate
+          ? `${formatDateVN(c.startDate)} — ${formatDateVN(c.endDate)}`
+          : `${formatDateVN(c.startDate)} — Hiện tại`,
+        badgeLabel: "Hợp đồng lao động",
+        badgeColorClass: "bg-[#CCFBF1] text-[#0F766E]",
+        icon: "description",
+        iconBgClass: "bg-[#0D9488]",
+        iconColorClass: "text-white",
+        title: `Ký HĐLĐ: ${typeLabel}`,
+        description:
+          c.notes ||
+          `Trạng thái hợp đồng: ${c.status === "Active" ? "Đang hiệu lực" : "Đã hết hạn"}.`,
+        code: c.contractNumber,
+      },
+    });
+  });
+
+  if (employee.hireDate) {
+    timelineEntries.push({
+      sortDate: employee.hireDate,
+      milestone: {
+        id: `hire-${employee.id}`,
+        dateText: formatDateVN(employee.hireDate),
+        badgeLabel: employee.status === "Probation" ? "Thử việc" : "Gia nhập",
+        badgeColorClass: "bg-[#D1FAE5] text-[#065F46]",
+        icon: "flag",
+        iconBgClass: "bg-[#059669]",
+        iconColorClass: "text-white",
+        title:
+          employee.status === "Probation"
+            ? "Bắt đầu thử việc tại công ty"
+            : "Gia nhập công ty",
+        description: `Vị trí: ${employee.positionName} — ${employee.departmentName}`,
+        code: employee.employeeCode,
+      },
+    });
+  }
+
+  timelineEntries.sort((a, b) => b.sortDate.localeCompare(a.sortDate));
+  const careerMilestones = timelineEntries.map((entry) => entry.milestone);
 
   return (
     <div className="space-y-6">
@@ -195,7 +336,7 @@ export function EmployeeDetailView({ id }: EmployeeDetailViewProps) {
       )}
 
       {/* 1. Breadcrumbs Context Navigation */}
-      <nav className="flex items-center gap-1.5 text-[12px] leading-[18px] text-[#6B7280]">
+      <nav className="flex items-center gap-1.5 text-[12px] leading-[18px] text-[#6B7280] flex-wrap">
         <Link
           href="/employees"
           className="hover:text-[#7C3AED] transition-colors flex items-center gap-1 font-medium"
@@ -235,7 +376,7 @@ export function EmployeeDetailView({ id }: EmployeeDetailViewProps) {
         onChange={(tabId) => setActiveTab(tabId)}
       />
 
-      {/* 4. Tab Content: Profile (Asymmetric Bento Grid: 7 cols left, 5 cols right) */}
+      {/* 4. Tab Content: Profile */}
       {activeTab === "profile" && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Column (7 Cols) */}
@@ -247,7 +388,7 @@ export function EmployeeDetailView({ id }: EmployeeDetailViewProps) {
 
           {/* Right Column (5 Cols) */}
           <div className="lg:col-span-5 flex flex-col gap-6">
-            <CareerTimelineCard />
+            <CareerTimelineCard milestones={careerMilestones} />
             <CompensationSummaryCard employee={employee} />
           </div>
         </div>
@@ -297,29 +438,33 @@ export function EmployeeDetailView({ id }: EmployeeDetailViewProps) {
 
       {/* Termination Modal */}
       {isTerminateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-[16px] max-w-lg w-full p-6 shadow-xl border border-[#E5E7EB] space-y-4 animate-in fade-in duration-200">
-            <div className="flex items-center gap-3 border-b border-[#E5E7EB] pb-3">
-              <div className="w-10 h-10 rounded-full bg-[#FEF2F2] text-[#EF4444] flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-[16px] max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden my-auto shadow-xl border border-[#E5E7EB] animate-in fade-in duration-200">
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-[#E5E7EB] shrink-0">
+              <div className="w-10 h-10 rounded-full bg-[#FEF2F2] text-[#EF4444] flex items-center justify-center shrink-0">
                 <Icon name="person_off" size={20} />
               </div>
               <div>
                 <h3 className="font-heading text-[18px] font-semibold text-[#111827]">
-                  Thủ tục Thôi việc (Offboarding)
+                  Thủ tục thôi việc
                 </h3>
                 <p className="text-[12px] text-[#6B7280]">
-                  Thao tác sẽ chuyển trạng thái sang Terminated và khóa tài khoản ESS.
+                  Chuyển trạng thái nhân sự sang Đã thôi việc và thu hồi quyền truy cập hệ thống.
                 </p>
               </div>
             </div>
 
-            {terminateError && (
-              <div className="p-3 bg-[#FEF2F2] border border-[#FCA5A5] rounded-[8px] text-[13px] text-[#991B1B]">
-                {terminateError}
-              </div>
-            )}
+            <form
+              id="terminateEmployeeForm"
+              onSubmit={handleTerminateSubmit}
+              className="p-6 space-y-4 flex-1 overflow-y-auto"
+            >
+              {terminateError && (
+                <div className="p-3 bg-[#FEF2F2] border border-[#FCA5A5] rounded-[8px] text-[13px] text-[#991B1B]">
+                  {terminateError}
+                </div>
+              )}
 
-            <form onSubmit={handleTerminateSubmit} className="space-y-4">
               <div>
                 <label className="text-[12px] font-medium text-[#4B5563] block mb-1">
                   Ngày thôi việc chính thức <span className="text-[#EF4444]">*</span>
@@ -340,31 +485,32 @@ export function EmployeeDetailView({ id }: EmployeeDetailViewProps) {
                 <textarea
                   required
                   rows={3}
-                  placeholder="Ghi rõ lý do (hết hạn hợp đồng, đơn phương chấm dứt, kỷ luật...)"
+                  placeholder="Ghi rõ lý do (hết hạn hợp đồng, nghỉ việc theo nguyện vọng, kỷ luật...)"
                   className="w-full p-3 border border-[#E5E7EB] rounded-[8px] text-[13px] focus:border-[#7C3AED] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/20"
                   value={terminationReason}
                   onChange={(e) => setTerminationReason(e.target.value)}
                 />
               </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#E5E7EB]">
-                <button
-                  type="button"
-                  onClick={() => setIsTerminateModalOpen(false)}
-                  className="h-10 px-4 rounded-[8px] border border-[#E5E7EB] text-[13px] font-medium text-[#4B5563] hover:bg-[#F3F4F6]"
-                  disabled={isTerminating}
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  disabled={isTerminating}
-                  className="h-10 px-4 rounded-[8px] bg-[#DC2626] hover:bg-[#B91C1C] text-white text-[13px] font-medium shadow-xs disabled:opacity-50"
-                >
-                  {isTerminating ? "Đang xử lý..." : "Xác nhận Thôi việc"}
-                </button>
-              </div>
             </form>
+
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#E5E7EB] bg-[#FAFAFA] shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsTerminateModalOpen(false)}
+                className="h-10 px-4 rounded-[8px] border border-[#E5E7EB] bg-white text-[13px] font-medium text-[#4B5563] hover:bg-[#F3F4F6] cursor-pointer"
+                disabled={isTerminating}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="submit"
+                form="terminateEmployeeForm"
+                disabled={isTerminating}
+                className="h-10 px-4 rounded-[8px] bg-[#DC2626] hover:bg-[#B91C1C] text-white text-[13px] font-medium shadow-xs disabled:opacity-50 cursor-pointer"
+              >
+                {isTerminating ? "Đang xử lý..." : "Xác nhận thôi việc"}
+              </button>
+            </div>
           </div>
         </div>
       )}

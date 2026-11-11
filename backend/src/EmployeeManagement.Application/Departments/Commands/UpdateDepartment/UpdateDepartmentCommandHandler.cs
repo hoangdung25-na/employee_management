@@ -68,19 +68,57 @@ public class UpdateDepartmentCommandHandler : IRequestHandler<UpdateDepartmentCo
             }
         }
 
-        // 2. Validate ManagerId if provided
+        // 2. Validate & Synchronize ManagerId if provided
         string? managerName = null;
+        var oldManagerId = department.ManagerId;
         if (request.ManagerId.HasValue)
         {
-            managerName = await _context.Employees
-                .AsNoTracking()
-                .Where(e => e.Id == request.ManagerId.Value && e.Status != EmployeeStatus.Terminated)
-                .Select(e => e.FullName)
-                .FirstOrDefaultAsync(cancellationToken);
+            var managerEmployee = await _context.Employees
+                .Include(e => e.Position)
+                .FirstOrDefaultAsync(e => e.Id == request.ManagerId.Value && e.Status != EmployeeStatus.Terminated, cancellationToken);
 
-            if (managerName is null)
+            if (managerEmployee is null)
             {
                 throw new BadRequestException("Nhân sự được chọn làm Trưởng phòng không tồn tại hoặc đã thôi việc.");
+            }
+            managerName = managerEmployee.FullName;
+
+            // 2.1. Đảm bảo nhân sự được bổ nhiệm thuộc phòng ban này
+            managerEmployee.DepartmentId = department.Id;
+
+            // 2.2. Quy tắc phân cấp: Trưởng phòng mặc định báo cáo trực tiếp cho Giám đốc điều hành cấp cao nhất (CEO / JobLevel == 1)
+            var highestDirector = await _context.Employees
+                .Include(e => e.Position)
+                .Where(e => !e.IsDeleted && e.Position.JobLevel == 1)
+                .OrderBy(e => e.HireDate)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (highestDirector != null && managerEmployee.Id != highestDirector.Id)
+            {
+                managerEmployee.DirectManagerId = highestDirector.Id;
+            }
+
+            // 2.3. Tự động đồng bộ Chức vụ của Trưởng phòng thành chức danh cấp Quản lý (JobLevel == 2) của phòng ban đó
+            var deptManagerPosition = await _context.DepartmentPositions
+                .Include(dp => dp.Position)
+                .Where(dp => dp.DepartmentId == department.Id && dp.Position.JobLevel == 2 && dp.Position.IsActive)
+                .Select(dp => dp.Position)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (deptManagerPosition != null)
+            {
+                managerEmployee.PositionId = deptManagerPosition.Id;
+            }
+
+            // 2.4. Đồng bộ nhân viên cấp dưới trong phòng tự động nhận Trưởng phòng làm người Quản lý trực tiếp
+            var subordinates = await _context.Employees
+                .Where(e => !e.IsDeleted && e.DepartmentId == department.Id && e.Id != managerEmployee.Id &&
+                            (e.DirectManagerId == null || (oldManagerId.HasValue && e.DirectManagerId == oldManagerId.Value)))
+                .ToListAsync(cancellationToken);
+
+            foreach (var sub in subordinates)
+            {
+                sub.DirectManagerId = managerEmployee.Id;
             }
         }
 

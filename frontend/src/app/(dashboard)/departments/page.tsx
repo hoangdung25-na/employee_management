@@ -52,7 +52,7 @@ export default function DepartmentsPage() {
     try {
       const [deptList, empResult] = await Promise.all([
         getDepartments({ keyword, includeInactive }),
-        getEmployees({ pageNumber: 1, pageSize: 100 }),
+        getEmployees({ pageNumber: 1, pageSize: 100 }).catch(() => ({ items: [] })),
       ]);
       setDepartments(deptList);
       setEmployees(empResult.items);
@@ -60,7 +60,7 @@ export default function DepartmentsPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Không thể tải danh sách phòng ban. Vui lòng đăng nhập tài khoản có quyền Department.View."
+          : "Không thể tải danh sách phòng ban. Vui lòng kiểm tra quyền truy cập."
       );
     } finally {
       setIsLoading(false);
@@ -150,7 +150,7 @@ export default function DepartmentsPage() {
   const handleDelete = async (dept: Department) => {
     if (
       !window.confirm(
-        `Bạn có chắc chắn muốn xóa mềm phòng ban "${dept.departmentName}" (${dept.departmentCode})?`
+        `Bạn có chắc chắn muốn ngừng hoạt động phòng ban "${dept.departmentName}" (${dept.departmentCode})?`
       )
     ) {
       return;
@@ -163,7 +163,7 @@ export default function DepartmentsPage() {
       alert(
         err instanceof Error
           ? err.message
-          : "Không thể xóa phòng ban. Vui lòng kiểm tra quyền SUPER_ADMIN hoặc nhân sự trực thuộc."
+          : "Không thể xóa phòng ban. Vui lòng kiểm tra nhân sự trực thuộc."
       );
     }
   };
@@ -179,15 +179,15 @@ export default function DepartmentsPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-heading text-[32px] leading-[40px] font-bold text-[#111827]">
+          <h1 className="font-heading text-[28px] leading-[36px] font-bold text-[#111827]">
             Cơ cấu Phòng ban
           </h1>
           <p className="text-[14px] leading-[22px] text-[#6B7280] mt-1">
-            Quản lý sơ đồ tổ chức phân cấp, bổ nhiệm Trưởng bộ phận và theo dõi biên chế thực tế.
+            Quản lý sơ đồ tổ chức, bổ nhiệm Trưởng bộ phận và theo dõi quân số từng đơn vị.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <button
             type="button"
             onClick={loadData}
@@ -209,7 +209,7 @@ export default function DepartmentsPage() {
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div className="bg-white border border-[#E5E7EB] rounded-[8px] p-6 shadow-xs">
+        <div className="bg-white border border-[#E5E7EB] rounded-[12px] p-5 shadow-xs">
           <span className="text-[12px] leading-[18px] font-medium text-[#6B7280] uppercase tracking-wider">
             Tổng số đơn vị / Phòng ban
           </span>
@@ -221,7 +221,7 @@ export default function DepartmentsPage() {
           </p>
         </div>
 
-        <div className="bg-white border border-[#E5E7EB] rounded-[8px] p-6 shadow-xs">
+        <div className="bg-white border border-[#E5E7EB] rounded-[12px] p-5 shadow-xs">
           <span className="text-[12px] leading-[18px] font-medium text-[#6B7280] uppercase tracking-wider">
             Đang hoạt động
           </span>
@@ -233,9 +233,9 @@ export default function DepartmentsPage() {
           </p>
         </div>
 
-        <div className="bg-white border border-[#E5E7EB] rounded-[8px] p-6 shadow-xs">
+        <div className="bg-white border border-[#E5E7EB] rounded-[12px] p-5 shadow-xs">
           <span className="text-[12px] leading-[18px] font-medium text-[#6B7280] uppercase tracking-wider">
-            Tổng biên chế trực thuộc
+            Tổng quân số trực thuộc
           </span>
           <p className="font-heading text-[24px] leading-[32px] font-semibold text-[#0D9488] mt-2">
             {totalHeadcount}{" "}
@@ -247,13 +247,13 @@ export default function DepartmentsPage() {
       </div>
 
       {/* Search & Table Card */}
-      <div className="bg-white border border-[#E5E7EB] rounded-[8px] shadow-xs overflow-hidden">
-        <div className="p-6 border-b border-[#E5E7EB] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white border border-[#E5E7EB] rounded-[12px] shadow-xs overflow-hidden">
+        <div className="p-5 border-b border-[#E5E7EB] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <input
             type="text"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            placeholder="Tìm theo Mã phòng ban (BOD, TECH, HR...) hoặc Tên phòng ban..."
+            placeholder="Tìm theo mã phòng ban (BOD, TECH, HR...) hoặc tên phòng ban..."
             className="h-10 w-full sm:max-w-md px-3 py-2 rounded-[8px] border border-[#E5E7EB] bg-white text-[14px] text-[#111827] hover:border-[#A78BFA] focus:outline-none focus:border-[#7C3AED] focus:ring-3 focus:ring-[#7C3AED]/25"
           />
 
@@ -285,11 +285,11 @@ export default function DepartmentsPage() {
             <thead>
               <tr className="border-b border-[#E5E7EB] bg-[#FAFAFA] text-[12px] leading-[18px] font-semibold text-[#6B7280] uppercase tracking-wider">
                 <th className="py-3 px-4">Đơn vị / Phòng ban</th>
-                <th className="py-3 px-4">Trực thuộc (Cấp trên)</th>
+                <th className="py-3 px-4">Đơn vị cấp trên</th>
                 <th className="py-3 px-4">Trưởng bộ phận</th>
-                <th className="py-3 px-4">Biên chế</th>
+                <th className="py-3 px-4">Quân số</th>
                 <th className="py-3 px-4">Trạng thái</th>
-                <th className="py-3 px-4 text-right">Hành động</th>
+                <th className="py-3 px-4 text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E5E7EB] text-[14px]">
@@ -313,7 +313,7 @@ export default function DepartmentsPage() {
                   >
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2.5">
-                        <span className="font-mono text-[12px] font-semibold px-2 py-0.5 rounded-[4px] bg-[#F5F3FF] text-[#7C3AED] border border-[#DDD6FE]">
+                        <span className="font-mono text-[12px] font-semibold px-2 py-0.5 rounded-[4px] bg-[#F5F3FF] text-[#7C3AED] border border-[#DDD6FE] shrink-0">
                           {dept.departmentCode}
                         </span>
                         <div>
@@ -342,12 +342,12 @@ export default function DepartmentsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 whitespace-nowrap">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-medium bg-[#F0FDFA] text-[#0D9488] border border-[#CCFBF1]">
-                        {dept.employeeCount} thành viên
+                        {dept.employeeCount} nhân sự
                       </span>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 whitespace-nowrap">
                       {dept.isActive ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-medium bg-[#ECFDF5] text-[#059669]">
                           Hoạt động
@@ -398,13 +398,13 @@ export default function DepartmentsPage() {
 
       {/* Modal Thêm / Sửa Phòng ban */}
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg bg-white rounded-[12px] border border-[#E5E7EB] p-6 shadow-lg space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-heading text-[20px] leading-[28px] font-semibold text-[#111827]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto">
+          <div className="w-full max-w-lg bg-white rounded-[12px] border border-[#E5E7EB] shadow-lg max-h-[90vh] flex flex-col overflow-hidden my-auto">
+            <div className="px-6 py-4 border-b border-[#E5E7EB] flex items-center justify-between bg-[#FAFAFA] shrink-0">
+              <h2 className="font-heading text-[18px] leading-[26px] font-semibold text-[#111827]">
                 {editingDept
                   ? `Cập nhật Phòng ban (${editingDept.departmentCode})`
-                  : "Thêm mới Phòng ban"}
+                  : "Thêm phòng ban mới"}
               </h2>
               <button
                 type="button"
@@ -415,13 +415,17 @@ export default function DepartmentsPage() {
               </button>
             </div>
 
-            {formError && (
-              <div className="p-3 rounded-[8px] bg-[#FEF2F2] border border-[#EF4444] text-[#EF4444] text-[13px]">
-                {formError}
-              </div>
-            )}
+            <form
+              id="departmentForm"
+              onSubmit={handleFormSubmit}
+              className="p-6 space-y-4 flex-1 overflow-y-auto"
+            >
+              {formError && (
+                <div className="p-3 rounded-[8px] bg-[#FEF2F2] border border-[#EF4444] text-[#EF4444] text-[13px]">
+                  {formError}
+                </div>
+              )}
 
-            <form onSubmit={handleFormSubmit} className="space-y-4">
               {!editingDept && (
                 <div>
                   <label className="block text-[14px] font-medium text-[#111827] mb-1">
@@ -520,39 +524,40 @@ export default function DepartmentsPage() {
                   Phòng ban đang hoạt động
                 </label>
               )}
-
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsFormOpen(false)}
-                  className="h-10 px-4 rounded-[8px] border border-[#E5E7EB] text-[14px] font-medium text-[#6B7280] hover:bg-[#F3F4F6] cursor-pointer"
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="h-10 px-5 rounded-[8px] bg-[#7C3AED] text-white text-[14px] font-medium hover:bg-[#5B21B6] disabled:opacity-50 cursor-pointer"
-                >
-                  {isSubmitting ? "Đang lưu..." : "Lưu thông tin"}
-                </button>
-              </div>
             </form>
+
+            <div className="px-6 py-4 border-t border-[#E5E7EB] bg-[#FAFAFA] flex items-center justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsFormOpen(false)}
+                className="h-10 px-4 rounded-[8px] border border-[#E5E7EB] bg-white text-[14px] font-medium text-[#6B7280] hover:bg-[#F3F4F6] cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="submit"
+                form="departmentForm"
+                disabled={isSubmitting}
+                className="h-10 px-5 rounded-[8px] bg-[#7C3AED] text-white text-[14px] font-medium hover:bg-[#5B21B6] disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmitting ? "Đang lưu..." : "Lưu thông tin"}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* Modal Chi tiết Phòng ban */}
       {detailDept && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl bg-white rounded-[12px] border border-[#E5E7EB] p-6 shadow-lg space-y-4 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl bg-white rounded-[12px] border border-[#E5E7EB] shadow-lg max-h-[90vh] flex flex-col overflow-hidden my-auto">
+            <div className="px-6 py-4 flex items-center justify-between border-b border-[#E5E7EB] bg-[#FAFAFA] shrink-0">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[12px] font-semibold px-2 py-0.5 rounded-[4px] bg-[#F5F3FF] text-[#7C3AED]">
                     {detailDept.departmentCode}
                   </span>
-                  <h2 className="font-heading text-[20px] font-semibold text-[#111827]">
+                  <h2 className="font-heading text-[18px] font-semibold text-[#111827]">
                     {detailDept.departmentName}
                   </h2>
                 </div>
@@ -570,9 +575,9 @@ export default function DepartmentsPage() {
               </button>
             </div>
 
-            <div>
-              <h3 className="text-[14px] font-semibold text-[#111827] mb-2">
-                Thành viên trực thuộc ({detailDept.members.length})
+            <div className="p-6 flex-1 overflow-y-auto">
+              <h3 className="text-[14px] font-semibold text-[#111827] mb-3">
+                Nhân sự trực thuộc ({detailDept.members.length})
               </h3>
               {detailDept.members.length === 0 ? (
                 <p className="text-[13px] text-[#6B7280] py-4">
@@ -583,7 +588,7 @@ export default function DepartmentsPage() {
                   {detailDept.members.map((m) => (
                     <div
                       key={m.id}
-                      className="p-3 flex items-center justify-between text-[13px]"
+                      className="p-3 flex items-center justify-between text-[13px] hover:bg-[#F9FAFB]"
                     >
                       <div>
                         <p className="font-medium text-[#111827]">
@@ -598,7 +603,7 @@ export default function DepartmentsPage() {
                       </div>
                       <Link
                         href={`/employees/${m.id}`}
-                        className="text-[12px] font-medium text-[#7C3AED] hover:underline"
+                        className="text-[12px] font-medium text-[#7C3AED] hover:underline shrink-0"
                       >
                         Xem hồ sơ →
                       </Link>

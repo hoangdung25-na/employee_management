@@ -34,7 +34,7 @@ export function ContactEmergencyCard({
             <span className="text-[12px] text-[#6B7280]">Email công việc</span>
             <span className="inline-flex items-center gap-1 text-[11px] text-[#059669] bg-[#ECFDF5] px-1.5 py-0.5 rounded font-medium">
               <Icon name="check_circle" size={12} />
-              Enterprise
+              Chính thức
             </span>
           </div>
           <p className="font-mono text-[13px] font-semibold text-[#111827] truncate">
@@ -70,12 +70,11 @@ export function ContactEmergencyCard({
           <p className="text-[13px] font-semibold text-[#111827]">
             Người thân trong gia đình
           </p>
-          <p className="font-mono text-[12px] text-[#6B7280] mt-0.5">
-            Ưu tiên liên hệ khi có sự cố ngoài giờ
+          <p className="text-[12px] text-[#6B7280] mt-0.5">
+            Liên hệ khi cần thiết
           </p>
         </div>
       </div>
     </section>
   );
 }
-

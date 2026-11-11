@@ -1,3 +1,4 @@
+using EmployeeManagement.Api.Authorization;
 using EmployeeManagement.Application.Common;
 using EmployeeManagement.Application.Timesheets.Commands.CreateTimesheetEntry;
 using EmployeeManagement.Application.Timesheets.Commands.DeleteTimesheetEntry;
@@ -125,7 +126,7 @@ public class TimesheetsController : ControllerBase
     /// Accessible by Managers, HR Managers, or Super Admin with Timesheet.Approve permission.
     /// </summary>
     [HttpPut("{id:guid}/review")]
-    [Authorize(Policy = UserConsts.Permissions.TimesheetApprove)]
+    [RequirePermission(PermissionNames.Timesheets.Approve)]
     [ProducesResponseType(typeof(ApiResponse<TimesheetEntryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]

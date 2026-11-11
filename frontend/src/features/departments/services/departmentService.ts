@@ -39,8 +39,12 @@ export async function deleteDepartment(id: string): Promise<boolean> {
 }
 
 export async function getPositions(
-  includeInactive = false
+  includeInactive = false,
+  departmentId?: string
 ): Promise<PositionItem[]> {
-  return apiGet<PositionItem[]>("/positions", { includeInactive });
+  return apiGet<PositionItem[]>("/positions", {
+    includeInactive,
+    departmentId: departmentId || undefined,
+  });
 }
 

@@ -1,3 +1,4 @@
+using EmployeeManagement.Api.Authorization;
 using EmployeeManagement.Application.Common;
 using EmployeeManagement.Application.Employees.Commands.CreateDecision;
 using EmployeeManagement.Application.Employees.Commands.CreateEmployee;
@@ -7,6 +8,7 @@ using EmployeeManagement.Application.Employees.Commands.DeleteEmployeeDocument;
 using EmployeeManagement.Application.Employees.Commands.TerminateEmployee;
 using EmployeeManagement.Application.Employees.Commands.UpdateEmployee;
 using EmployeeManagement.Application.Employees.DTOs;
+using EmployeeManagement.Application.Employees.Queries.GetDepartmentManagers;
 using EmployeeManagement.Application.Employees.Queries.GetDecisionById;
 using EmployeeManagement.Application.Employees.Queries.GetEmployeeById;
 using EmployeeManagement.Application.Employees.Queries.GetEmployeeContracts;
@@ -50,6 +52,22 @@ public class EmployeesController : ControllerBase
     }
 
     /// <summary>
+    /// Retrieves eligible Direct Manager candidates filtered by Department and JobLevel hierarchy.
+    /// Excludes non-managerial staff to maintain organization structure integrity.
+    /// </summary>
+    [HttpGet("managers")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ManagerOptionDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDepartmentManagers(
+        [FromQuery] Guid? departmentId,
+        [FromQuery] Guid? excludeEmployeeId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new GetDepartmentManagersQuery(departmentId, excludeEmployeeId), cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<ManagerOptionDto>>.SuccessResult(result, "Lấy danh sách người quản lý hợp lệ thành công."));
+    }
+
+    /// <summary>
     /// Retrieves the full profile of a single employee by GUID.
     /// Enforces Row-Level Data Ownership for EMPLOYEE role and masks BaseSalary for HR_STAFF.
     /// </summary>
@@ -67,7 +85,7 @@ public class EmployeesController : ControllerBase
     /// Onboards a new employee and automatically generates a sequential EmployeeCode (EMP-xxxxx).
     /// </summary>
     [HttpPost]
-    [Authorize(Policy = UserConsts.Permissions.EmployeeCreate)]
+    [RequirePermission(PermissionNames.Employees.Create)]
     [ProducesResponseType(typeof(ApiResponse<EmployeeDetailDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
@@ -85,7 +103,7 @@ public class EmployeesController : ControllerBase
     /// Updates an existing employee's profile and compensation by GUID.
     /// </summary>
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = UserConsts.Permissions.EmployeeUpdate)]
+    [RequirePermission(PermissionNames.Employees.Update)]
     [ProducesResponseType(typeof(ApiResponse<EmployeeDetailDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -126,7 +144,7 @@ public class EmployeesController : ControllerBase
     /// and immediately deactivating the linked User account.
     /// </summary>
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = UserConsts.Permissions.EmployeeTerminate)]
+    [RequirePermission(PermissionNames.Employees.Terminate)]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -161,7 +179,7 @@ public class EmployeesController : ControllerBase
     /// Adds a new digital document to an employee's profile.
     /// </summary>
     [HttpPost("{id:guid}/documents")]
-    [Authorize(Policy = UserConsts.Permissions.DocumentManage)]
+    [RequirePermission(PermissionNames.Employees.DocumentManage)]
     [ProducesResponseType(typeof(ApiResponse<EmployeeDocumentDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -192,7 +210,7 @@ public class EmployeesController : ControllerBase
     /// Soft-deletes a digital document by ID.
     /// </summary>
     [HttpDelete("{id:guid}/documents/{docId:guid}")]
-    [Authorize(Policy = UserConsts.Permissions.DocumentManage)]
+    [RequirePermission(PermissionNames.Employees.DocumentManage)]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteEmployeeDocument(
@@ -224,7 +242,7 @@ public class EmployeesController : ControllerBase
     /// Automatically marks previous Active contract as Expired and synchronizes employee base salary.
     /// </summary>
     [HttpPost("{id:guid}/contracts")]
-    [Authorize(Policy = UserConsts.Permissions.DocumentManage)]
+    [RequirePermission(PermissionNames.Employees.DocumentManage)]
     [ProducesResponseType(typeof(ApiResponse<EmployeeContractDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -270,7 +288,7 @@ public class EmployeesController : ControllerBase
     /// Automatically updates employee Department, Position, and BaseSalary on Transfer or Promotion.
     /// </summary>
     [HttpPost("{id:guid}/decisions")]
-    [Authorize(Policy = UserConsts.Permissions.DecisionManage)]
+    [RequirePermission(PermissionNames.Decisions.Manage)]
     [ProducesResponseType(typeof(ApiResponse<EmployeeDecisionDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
